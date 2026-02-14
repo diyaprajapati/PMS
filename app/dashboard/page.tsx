@@ -1,0 +1,185 @@
+'use client';
+
+import { Button } from "@/components/ui/button";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { toast } from "sonner";
+import { getSession } from "next-auth/react";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { AppSidebar } from "@/components/app-sidebar";
+
+function DashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Handle JWT / NextAuth session and auto-logout
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const ensureTokenFromSession = async () => {
+      let token = localStorage.getItem("token");
+
+      // If no custom JWT token, but NextAuth session exists (e.g. Google login),
+      // create a lightweight client-only JWT so existing logic continues to work.
+      if (!token) {
+        const session = await getSession();
+        if (!session) {
+          // No session at all -> logout and redirect
+          void fetch("/api/auth/logout", { method: "POST" });
+          router.replace("/login");
+          return;
+        }
+
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const exp = nowSeconds + 60 * 60; // 1 hour from now
+
+        const encode = (obj: unknown) =>
+          btoa(JSON.stringify(obj))
+            .replace(/=+$/g, "")
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_");
+
+        const header = { alg: "HS256", typ: "JWT" };
+        const payload = { exp };
+
+        token = `${encode(header)}.${encode(payload)}.x`;
+        localStorage.setItem("token", token);
+      }
+
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as {
+          exp?: number;
+        };
+
+        if (!payload?.exp) {
+          localStorage.removeItem("token");
+          void fetch("/api/auth/logout", { method: "POST" });
+          router.replace("/login");
+          return;
+        }
+
+        const expireAt = payload.exp * 1000;
+        const now = Date.now();
+
+        if (expireAt <= now) {
+          localStorage.removeItem("token");
+          void fetch("/api/auth/logout", { method: "POST" });
+          toast.error("Session expired. Please log in again.");
+          router.replace("/login");
+          return;
+        }
+
+        // Schedule automatic logout when token expires
+        const timeoutId = window.setTimeout(() => {
+          localStorage.removeItem("token");
+          void fetch("/api/auth/logout", { method: "POST" });
+          toast.error("Session expired. Please log in again.");
+          router.replace("/login");
+        }, expireAt - now);
+
+        return () => {
+          window.clearTimeout(timeoutId);
+        };
+      } catch {
+        localStorage.removeItem("token");
+        void fetch("/api/auth/logout", { method: "POST" });
+        router.replace("/login");
+      }
+    };
+
+    void ensureTokenFromSession();
+  }, [router]);
+
+  // When page is restored from back/forward cache, re-check auth and redirect if logged out
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          router.replace("/login");
+          return;
+        }
+        fetch("/api/auth/me", { credentials: "include" })
+          .then((res) => { if (!res.ok) router.replace("/login"); })
+          .catch(() => router.replace("/login"));
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [router]);
+
+  // Handle Google auth success / failure toasts via query params
+  useEffect(() => {
+    const from = searchParams.get("from");
+    const error = searchParams.get("error");
+
+    if (from === "google" && !error) {
+      toast.success("Logged in with Google");
+    }
+
+    if (error) {
+      toast.error("Google authentication failed. Please try again.");
+    }
+  }, [searchParams]);
+
+  return (
+    // <div className="flex justify-between items-center p-4">
+    //   <h1 className="text-2xl font-bold">Dashboard</h1>
+    //   <Button
+        // onClick={() => {
+        //   localStorage.removeItem("token");
+        //   void fetch("/api/auth/logout", { method: "POST" });
+        //   router.replace("/login");
+        // }}
+        // className="cursor-pointer"
+    //   >
+    //     Logout
+    //   </Button>
+    // </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator
+              orientation="vertical"
+              className="mr-2 data-[orientation=vertical]:h-4"
+            />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink href="#">
+                    Build Your Application
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+            <div className="bg-muted/50 aspect-video rounded-xl" />
+            <div className="bg-muted/50 aspect-video rounded-xl" />
+            <div className="bg-muted/50 aspect-video rounded-xl" />
+          </div>
+          <div className="bg-muted/50 min-h-screen flex-1 rounded-xl md:min-h-min" />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="flex justify-between items-center p-4"><h1 className="text-2xl font-bold">Dashboard</h1><div className="h-10 w-20 animate-pulse rounded-md bg-muted" /></div>}>
+      <DashboardContent />
+    </Suspense>
+  );
+}

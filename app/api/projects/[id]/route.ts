@@ -1,0 +1,122 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/get-current-user";
+
+type RouteContext = { params: Promise<{ id: string }> };
+
+// PATCH /api/projects/[id] – update a project (must own it)
+async function updateProject(req: Request, context: RouteContext) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  if (!id) {
+    return NextResponse.json({ error: "Project ID required" }, { status: 400 });
+  }
+
+  if (!prisma.project) {
+    return NextResponse.json(
+      {
+        error:
+          "Prisma client is out of date. Restart the dev server (and run `npx prisma generate` if needed).",
+      },
+      { status: 503 }
+    );
+  }
+
+  const existing = await prisma.project.findFirst({
+    where: { id, userId: user.id },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  let body: { name?: string; description?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
+
+  const updates: { name?: string; description?: string | null } = {};
+  if (typeof body.name === "string") {
+    const name = body.name.trim();
+    if (!name) {
+      return NextResponse.json(
+        { error: "Name cannot be empty" },
+        { status: 400 }
+      );
+    }
+    updates.name = name;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "description")) {
+    updates.description =
+      typeof body.description === "string"
+        ? (body.description.trim() || null)
+        : null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(existing);
+  }
+
+  const project = await prisma.project.update({
+    where: { id },
+    data: updates,
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return NextResponse.json(project);
+}
+
+// PATCH /api/projects/[id] – update a project (must own it)
+export async function PATCH(req: Request, context: RouteContext) {
+  return updateProject(req, context);
+}
+
+// DELETE /api/projects/[id] – delete a project (must own it)
+export async function DELETE(_req: Request, context: RouteContext) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  if (!id) {
+    return NextResponse.json({ error: "Project ID required" }, { status: 400 });
+  }
+
+  if (!prisma.project) {
+    return NextResponse.json(
+      {
+        error:
+          "Prisma client is out of date. Restart the dev server (and run `npx prisma generate` if needed).",
+      },
+      { status: 503 }
+    );
+  }
+
+  const existing = await prisma.project.findFirst({
+    where: { id, userId: user.id },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  await prisma.project.delete({
+    where: { id },
+  });
+
+  return new NextResponse(null, { status: 204 });
+}
