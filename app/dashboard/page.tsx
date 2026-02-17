@@ -25,38 +25,138 @@ function DashboardContent() {
     const ensureTokenFromSession = async () => {
       let token = localStorage.getItem("token");
 
-      // If no custom JWT token, but NextAuth session exists (e.g. Google login),
+      // Check if token is a real JWT (has proper structure with 3 parts and valid signature)
+      const isRealJWT = (t: string | null): boolean => {
+        if (!t) return false;
+        const parts = t.split(".");
+        if (parts.length !== 3) return false;
+        // Real JWT signatures are longer than just "x"
+        if (parts[2] === "x" || parts[2].length < 10) {
+          console.log("Token failed signature check - signature too short or is 'x'");
+          return false;
+        }
+        try {
+          const payload = JSON.parse(atob(parts[1] ?? ""));
+          // Real JWT should have id or email in payload (from our login API)
+          const hasUserInfo = !!(payload?.id || payload?.email);
+          if (!hasUserInfo) {
+            console.log("Token failed payload check - missing id or email");
+          }
+          return hasUserInfo;
+        } catch (e) {
+          console.log("Token failed parsing:", e);
+          return false;
+        }
+      };
+
+      // Check if we have a real token first
+      const hasRealToken = token && isRealJWT(token);
+      
+      console.log("Dashboard token check:", {
+        hasToken: !!token,
+        isRealJWT: hasRealToken,
+        tokenPreview: token ? token.substring(0, 50) + "..." : "none"
+      });
+
+      // If no real JWT token, but NextAuth session exists (e.g. Google login),
       // create a lightweight client-only JWT so existing logic continues to work.
-      if (!token) {
+      if (!hasRealToken) {
+        // First, check if we have a valid cookie (from email/password login)
+        // If cookie exists, we shouldn't create a fake token
+        try {
+          const meResponse = await fetch("/api/auth/me", { credentials: "include" });
+          if (meResponse.ok) {
+            const meData = await meResponse.json();
+            if (meData?.user) {
+              console.log("✅ Valid session found via cookie - checking if we need to store token");
+              // User is authenticated via cookie
+              // If we have an invalid token, remove it, but don't create a fake one
+              if (token && !isRealJWT(token)) {
+                console.log("Removing invalid token since user is authenticated via cookie");
+                localStorage.removeItem("token");
+              }
+              // Don't exit - continue with token validation flow
+              // The token might be valid, or we'll validate it below
+            }
+          }
+        } catch (e) {
+          console.log("Could not verify session:", e);
+        }
+
         const session = await getSession();
         if (!session) {
           // No session at all -> logout and redirect
+          if (token) {
+            console.log("Removing invalid token - no session found");
+            localStorage.removeItem("token"); // Remove invalid token
+          }
           void fetch("/api/auth/logout", { method: "POST" });
           router.replace("/login");
           return;
         }
 
-        const nowSeconds = Math.floor(Date.now() / 1000);
-        const exp = nowSeconds + 60 * 60; // 1 hour from now
+        // We have a NextAuth session but no real JWT token
+        // Create a real JWT token for Google OAuth users
+        console.log("🔄 Creating real JWT token for Google OAuth user");
+        try {
+          const tokenResponse = await fetch("/api/auth/google-token", {
+            method: "POST",
+            credentials: "include",
+          });
 
-        const encode = (obj: unknown) =>
-          btoa(JSON.stringify(obj))
-            .replace(/=+$/g, "")
-            .replace(/\+/g, "-")
-            .replace(/\//g, "_");
+          if (tokenResponse.ok) {
+            const tokenData = await tokenResponse.json();
+            if (typeof tokenData?.token === "string") {
+              token = tokenData.token as string;
+              localStorage.setItem("token", token);
+              console.log("✅ Real JWT token created and stored for Google OAuth user");
+            } else {
+              throw new Error("No token in response");
+            }
+          } else {
+            throw new Error(`Failed to create token: ${tokenResponse.status}`);
+          }
+        } catch (error) {
+          console.error("Failed to create real token for Google OAuth:", error);
+          // Fallback: create placeholder token (but this shouldn't happen)
+          console.log("⚠️ Falling back to placeholder token");
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const exp = nowSeconds + 60 * 60;
 
-        const header = { alg: "HS256", typ: "JWT" };
-        const payload = { exp };
+          const encode = (obj: unknown) =>
+            btoa(JSON.stringify(obj))
+              .replace(/=+$/g, "")
+              .replace(/\+/g, "-")
+              .replace(/\//g, "_");
 
-        token = `${encode(header)}.${encode(payload)}.x`;
-        localStorage.setItem("token", token);
+          const header = { alg: "HS256", typ: "JWT" };
+          const payload = { exp };
+
+          token = `${encode(header)}.${encode(payload)}.x`;
+          localStorage.setItem("token", token);
+        }
+      } else {
+        console.log("✅ Real JWT token found - keeping it");
       }
 
+      if (!token) {
+        localStorage.removeItem("token");
+        void fetch("/api/auth/logout", { method: "POST" });
+        router.replace("/login");
+        return;
+      }
+
+      // At this point, token is guaranteed to be non-null
+      const currentToken = token;
+
       try {
-        const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as {
+        const payload = JSON.parse(atob(currentToken.split(".")[1] ?? "")) as {
           exp?: number;
+          id?: string;
+          email?: string;
         };
 
+        // Validate token has expiration
         if (!payload?.exp) {
           localStorage.removeItem("token");
           void fetch("/api/auth/logout", { method: "POST" });

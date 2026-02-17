@@ -3,40 +3,94 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/get-current-user";
 
 // GET /api/projects – list projects for the current user
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: Request) {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  if (!prisma.project) {
-    return NextResponse.json(
-      {
-        error:
-          "Prisma client is out of date. Restart the dev server (and run `npx prisma generate` if needed).",
+    if (!prisma.project) {
+      return NextResponse.json(
+        {
+          error:
+            "Prisma client is out of date. Restart the dev server (and run `npx prisma generate` if needed).",
+        },
+        { status: 503 }
+      );
+    }
+
+    // Get projects owned by the user
+    const ownedProjects = await prisma.project.findMany({
+      where: { userId: user.id },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
       },
-      { status: 503 }
+    });
+
+    // Get projects where the user is a member
+    let memberProjects: Array<{ project: any }> = [];
+    try {
+      memberProjects = await prisma.projectMember.findMany({
+        where: { userId: user.id },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (error: any) {
+      // If ProjectMember table doesn't exist yet, just use empty array
+      if (error?.message?.includes("does not exist")) {
+        console.warn("ProjectMember table does not exist yet. Run migrations: npx prisma migrate dev");
+        memberProjects = [];
+      } else {
+        throw error;
+      }
+    }
+
+    // Combine and deduplicate (in case user is both owner and member, which shouldn't happen)
+    const allProjects = [
+      ...ownedProjects,
+      ...memberProjects.map((mp: { project: any; }) => mp.project),
+    ];
+
+    // Remove duplicates by id
+    const uniqueProjects = Array.from(
+      new Map(allProjects.map((p) => [p.id, p])).values()
+    );
+
+    // Sort by updatedAt descending
+    uniqueProjects.sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+
+    return NextResponse.json(uniqueProjects);
+  } catch (error: any) {
+    console.error("Error fetching projects:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to fetch projects" },
+      { status: 500 }
     );
   }
-
-  const projects = await prisma.project.findMany({
-    where: { userId: user.id },
-    orderBy: { updatedAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-
-  return NextResponse.json(projects);
 }
 
 // POST /api/projects – create a project
 export async function POST(req: Request) {
-  const user = await getCurrentUser();
+  const user = await getCurrentUser(req);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -71,33 +71,162 @@ export default function Page() {
 
     await toast.promise(
       (async () => {
+        // Check if localStorage is available
+        if (typeof window === "undefined") {
+          throw new Error("Window is not available");
+        }
+        
+        if (typeof localStorage === "undefined") {
+          throw new Error("localStorage is not available in this browser");
+        }
+
+        // Test localStorage write/read capability
+        try {
+          const testKey = "__localStorage_test__";
+          localStorage.setItem(testKey, "test");
+          const testValue = localStorage.getItem(testKey);
+          localStorage.removeItem(testKey);
+          if (testValue !== "test") {
+            throw new Error("localStorage write/read test failed");
+          }
+          console.log("✅ localStorage is working correctly");
+        } catch (testError: any) {
+          console.error("localStorage test failed:", testError);
+          throw new Error(`localStorage is not working: ${testError?.message || "Unknown error"}`);
+        }
+
         const res = await fetch("/api/auth/login", {
           method: "POST",
           body: JSON.stringify({ email, password }),
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // Ensure cookies are sent/received
         });
 
         const data = await res.json();
+        console.log("Login response:", { ok: res.ok, status: res.status, hasToken: !!data?.token, data });
 
         if (!res.ok) {
-          throw new Error(data.message || "Login failed");
+          throw new Error(data.error || data.message || "Login failed");
         }
 
         // persist token for client-side checks
         if (data?.token) {
-          localStorage.setItem("token", data.token);
+          try {
+            // Validate it's a real JWT token (has 3 parts and proper structure)
+            const tokenParts = data.token.split(".");
+            if (tokenParts.length !== 3) {
+              console.error("Invalid token format - expected JWT with 3 parts:", data.token.substring(0, 50));
+              throw new Error("Invalid token format received from server");
+            }
+            
+            // Decode and verify token payload
+            try {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              console.log("Token payload:", { 
+                hasId: !!payload.id, 
+                hasEmail: !!payload.email, 
+                hasExp: !!payload.exp,
+                userId: payload.id?.substring(0, 8) + "..."
+              });
+              
+              if (!payload.id || !payload.email) {
+                console.warn("Token missing required fields (id or email)");
+              }
+            } catch (decodeError) {
+              console.error("Failed to decode token payload:", decodeError);
+              throw new Error("Invalid token payload");
+            }
+            
+            // Store the token
+            console.log("Attempting to store token in localStorage...");
+            localStorage.setItem("token", data.token);
+            console.log("✅ localStorage.setItem() called successfully");
+            
+            // Wait a tiny bit to ensure write completes
+            await new Promise(resolve => setTimeout(resolve, 10));
+            
+            // Verify it was stored immediately
+            const storedToken = localStorage.getItem("token");
+            console.log("Token verification after storage:", { 
+              stored: !!storedToken, 
+              matches: storedToken === data.token,
+              storedLength: storedToken?.length,
+              receivedLength: data.token.length,
+              firstChars: storedToken?.substring(0, 30) + "...",
+              fullToken: storedToken // Log full token for debugging
+            });
+            
+            if (!storedToken) {
+              console.error("❌ Token is NULL after storage!");
+              throw new Error("Token was not stored - localStorage returned null");
+            }
+            
+            if (storedToken !== data.token) {
+              console.error("❌ Token mismatch after storage!", {
+                stored: storedToken?.substring(0, 50),
+                expected: data.token.substring(0, 50),
+                storedLength: storedToken?.length,
+                expectedLength: data.token.length
+              });
+              throw new Error("Token was not stored correctly - values don't match");
+            }
+            
+            console.log("✅ Token verified successfully in localStorage");
+          } catch (storageError: any) {
+            console.error("Failed to store token in localStorage:", storageError);
+            throw new Error(`Failed to store authentication token: ${storageError?.message || "Unknown error"}`);
+          }
+        } else {
+          console.error("No token received in login response:", data);
+          throw new Error("No authentication token received from server");
         }
 
+        // Double-check token is stored before returning (with multiple checks)
+        let finalCheck = localStorage.getItem("token");
+        console.log("Final check #1:", { 
+          hasToken: !!finalCheck, 
+          matches: finalCheck === data.token,
+          length: finalCheck?.length 
+        });
+        
+        // Wait a bit more and check again
+        await new Promise(resolve => setTimeout(resolve, 50));
+        finalCheck = localStorage.getItem("token");
+        console.log("Final check #2 (after 50ms):", { 
+          hasToken: !!finalCheck, 
+          matches: finalCheck === data.token,
+          length: finalCheck?.length 
+        });
+        
+        if (!finalCheck) {
+          console.error("❌ Token is NULL in final check!");
+          throw new Error("Token was not persisted - localStorage returned null");
+        }
+        
+        if (finalCheck !== data.token) {
+          console.error("❌ Token mismatch in final check!", {
+            stored: finalCheck.substring(0, 50),
+            expected: data.token.substring(0, 50)
+          });
+          throw new Error("Token was not persisted correctly - values don't match");
+        }
+        
+        console.log("✅✅✅ Login complete - token verified TWICE in localStorage");
+        console.log("Token value:", finalCheck.substring(0, 50) + "...");
         return data;
       })(),
       {
         loading: "Logging in...",
         success: () => {
-          // router.push("/dashboard");
-          router.push("/projects");
+          // Token is already stored and verified in the async function above
+          // Use replace instead of push to prevent back navigation to login
+          router.replace("/projects");
           return "Login successful";
         },
-        error: (err: any) => err?.message || "Login failed",
+        error: (err: any) => {
+          console.error("Login error:", err);
+          return err?.message || "Login failed";
+        },
       }
     );
   };

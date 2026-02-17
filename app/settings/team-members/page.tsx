@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import { ProjectBreadcrumb } from '@/components/project-breadcrumb';
+import TeamMembers from '@/components/settings/TeamMembers';
 
 function TeamMembersContent() {
   const { projectId, project, projectLoading } = useProjectFromSearchParams();
@@ -29,7 +30,9 @@ function TeamMembersContent() {
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0" />
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0" >
+        <TeamMembers />
+      </div>
     </>
   );
 }

@@ -99,16 +99,19 @@ export default function Page() {
           method: "POST",
           body: JSON.stringify({ name, email, password }),
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // Ensure cookies are sent/received
         });
 
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.message || "Registration failed");
+          throw new Error(data.error || data.message || "Registration failed");
         }
 
         if (data?.token) {
           localStorage.setItem("token", data.token);
+        } else {
+          console.warn("No token received in registration response");
         }
 
         return data;

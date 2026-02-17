@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { hasProjectAccess } from "@/lib/project-permissions";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-// GET /api/projects/[id] – get a single project (must own it or be member – for now owner only)
+// GET /api/projects/[id] – get a single project (must own it or be member)
 export async function GET(_req: Request, context: RouteContext) {
   const user = await getCurrentUser();
   if (!user) {
@@ -26,8 +27,17 @@ export async function GET(_req: Request, context: RouteContext) {
     );
   }
 
-  const project = await prisma.project.findFirst({
-    where: { id, userId: user.id },
+  // Check if user has access to the project (owner or member)
+  const hasAccess = await hasProjectAccess(user.id, id);
+  if (!hasAccess) {
+    return NextResponse.json(
+      { error: "Project not found" },
+      { status: 404 }
+    );
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id },
     select: {
       id: true,
       name: true,

@@ -33,6 +33,54 @@ export default function ProjectsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Check token on mount and create one for Google OAuth users if needed
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const checkAndCreateToken = async () => {
+      const token = localStorage.getItem("token");
+      console.log("Projects page - token check:", {
+        hasToken: !!token,
+        tokenLength: token?.length,
+        tokenPreview: token ? token.substring(0, 30) + "..." : "none"
+      });
+
+      // If no token or token is fake (ends in .x), check if we have a NextAuth session
+      if (!token || token.endsWith(".x")) {
+        try {
+          // Check if we have a valid session via cookie
+          const meResponse = await fetch("/api/auth/me", { credentials: "include" });
+          if (meResponse.ok) {
+            const meData = await meResponse.json();
+            if (meData?.user) {
+              console.log("✅ Valid session found - creating JWT token for Google OAuth user");
+              
+              // Create a real JWT token for this user
+              const tokenResponse = await fetch("/api/auth/google-token", {
+                method: "POST",
+                credentials: "include",
+              });
+
+              if (tokenResponse.ok) {
+                const tokenData = await tokenResponse.json();
+                if (tokenData?.token) {
+                  localStorage.setItem("token", tokenData.token);
+                  console.log("✅ Real JWT token created and stored for Google OAuth user");
+                }
+              } else {
+                console.warn("Failed to create token for Google OAuth user");
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error checking session or creating token:", error);
+        }
+      }
+    };
+
+    checkAndCreateToken();
+  }, []);
+
   const fetchProjects = useCallback(async () => {
     setError(null);
     try {
