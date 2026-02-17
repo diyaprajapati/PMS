@@ -1,18 +1,22 @@
 'use client';
 
-import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Suspense, useEffect } from "react";
 import { toast } from "sonner";
 import { getSession } from "next-auth/react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { AppSidebar } from "@/components/app-sidebar";
+import { useProjectFromSearchParams } from "@/hooks/use-project-from-search-params";
+import { ProjectBreadcrumb } from "@/components/project-breadcrumb";
+import { ProjectContextCard } from "@/components/project-context-card";
 
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { projectId, project, projectLoading } = useProjectFromSearchParams();
 
   // Handle JWT / NextAuth session and auto-logout
   useEffect(() => {
@@ -149,21 +153,24 @@ function DashboardContent() {
               className="mr-2 data-[orientation=vertical]:h-4"
             />
             <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Build Your Application
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
+              <ProjectBreadcrumb
+                projectId={projectId}
+                project={project}
+                projectLoading={projectLoading}
+                tabName="Dashboard"
+              />
             </Breadcrumb>
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          {projectId && !projectLoading && project && (
+            <ProjectContextCard project={project} />
+          )}
+          {!projectId && (
+            <p className="text-muted-foreground text-sm">
+              Select a project from <Link href="/projects" className="text-primary underline">Projects</Link> to open its dashboard.
+            </p>
+          )}
           <div className="grid auto-rows-min gap-4 md:grid-cols-3">
             <div className="bg-muted/50 aspect-video rounded-xl" />
             <div className="bg-muted/50 aspect-video rounded-xl" />

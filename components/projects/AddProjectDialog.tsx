@@ -16,6 +16,7 @@ import { Field, FieldGroup, FieldError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
 
 const NAME_MAX_LENGTH = 200;
 const DESCRIPTION_MAX_LENGTH = 1000;
@@ -102,6 +103,7 @@ export function AddProjectDialog({ onSuccess, trigger }: AddProjectDialogProps) 
       <DialogTrigger asChild>
         {trigger ?? (
           <Button type="button" className="cursor-pointer">
+            <Plus />
             Create Project
           </Button>
         )}

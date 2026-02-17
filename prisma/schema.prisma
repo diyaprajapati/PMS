@@ -13,25 +13,49 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ProjectRole {
+  OWNER
+  ADMIN
+  DEVELOPER
+  CLIENT
+}
+
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  password  String?
-  name      String?
-  image     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  projects  Project[]
+  id                 String          @id @default(uuid())
+  email              String          @unique
+  password           String?
+  name               String?
+  image              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  ownedProjects      Project[]       @relation("ProjectOwner")
+  projectMemberships ProjectMember[]
 }
 
 model Project {
-  id          String   @id @default(uuid())
+  id          String          @id @default(uuid())
   name        String
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  owner       User            @relation("ProjectOwner", fields: [userId], references: [id], onDelete: Cascade)
+  members     ProjectMember[]
 
+  @@index([userId])
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(CLIENT)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
   @@index([userId])
 }

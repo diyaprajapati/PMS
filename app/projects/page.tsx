@@ -17,6 +17,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { AddProjectDialog } from '@/components/projects/AddProjectDialog';
 import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
 import { EditProjectDialog, type Project } from '@/components/projects/EditProjectDialog';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -138,9 +139,9 @@ export default function ProjectsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search projects"
-                className="pl-9 pr-9"
+                className="pl-9"
               />
-              {isSearching && (
+              {/* {isSearching && (
                 <button
                   type="button"
                   onClick={() => setSearch('')}
@@ -149,7 +150,7 @@ export default function ProjectsPage() {
                 >
                   <X className="size-4" />
                 </button>
-              )}
+              )} */}
             </div>
             <AddProjectDialog onSuccess={fetchProjects} />
           </div>
@@ -197,7 +198,14 @@ export default function ProjectsPage() {
             {filteredProjects.map((project) => (
               <Card key={project.id} className="p-4 flex flex-col">
                 <CardHeader className="flex flex-row items-start justify-between gap-2 p-0 pb-2">
-                  <CardTitle className="text-lg leading-tight wrap-break-word">{project.name}</CardTitle>
+                  <CardTitle className="text-lg leading-tight wrap-break-word">
+                    <Link
+                      href={`/dashboard?project=${project.id}`}
+                      className="hover:underline focus:outline-none focus:underline cursor-pointer hover:text-primary transition-colors duration-200 ease-in-out"
+                    >
+                      {project.name}
+                    </Link>
+                  </CardTitle>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button

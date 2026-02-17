@@ -4,6 +4,46 @@ import { getCurrentUser } from "@/lib/get-current-user";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+// GET /api/projects/[id] – get a single project (must own it or be member – for now owner only)
+export async function GET(_req: Request, context: RouteContext) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  if (!id) {
+    return NextResponse.json({ error: "Project ID required" }, { status: 400 });
+  }
+
+  if (!prisma.project) {
+    return NextResponse.json(
+      {
+        error:
+          "Prisma client is out of date. Restart the dev server (and run `npx prisma generate` if needed).",
+      },
+      { status: 503 }
+    );
+  }
+
+  const project = await prisma.project.findFirst({
+    where: { id, userId: user.id },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(project);
+}
+
 // PATCH /api/projects/[id] – update a project (must own it)
 async function updateProject(req: Request, context: RouteContext) {
   const user = await getCurrentUser();

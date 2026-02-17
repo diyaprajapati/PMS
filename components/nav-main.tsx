@@ -1,6 +1,8 @@
 "use client"
 
 import { ChevronRight, type LucideIcon } from "lucide-react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 import {
   Collapsible,
@@ -32,6 +34,19 @@ export function NavMain({
     }[]
   }[]
 }) {
+  const searchParams = useSearchParams()
+  const projectId = searchParams.get('project')
+
+  // Helper to preserve project parameter in URLs
+  const getUrlWithProject = (url: string) => {
+    if (url === '#' || !projectId) return url
+    // Only add project param to settings URLs that don't already have query params
+    if (url.startsWith('/settings/') && !url.includes('?')) {
+      return `${url}?project=${projectId}`
+    }
+    return url
+  }
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -53,15 +68,24 @@ export function NavMain({
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
-                  {item.items?.map((subItem) => (
-                    <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton asChild>
-                        <a href={subItem.url}>
-                          <span>{subItem.title}</span>
-                        </a>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  ))}
+                  {item.items?.map((subItem) => {
+                    const href = getUrlWithProject(subItem.url)
+                    return (
+                      <SidebarMenuSubItem key={subItem.title}>
+                        <SidebarMenuSubButton asChild>
+                          {href.startsWith('/') ? (
+                            <Link href={href}>
+                              <span>{subItem.title}</span>
+                            </Link>
+                          ) : (
+                            <a href={href}>
+                              <span>{subItem.title}</span>
+                            </a>
+                          )}
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    )
+                  })}
                 </SidebarMenuSub>
               </CollapsibleContent>
             </SidebarMenuItem>

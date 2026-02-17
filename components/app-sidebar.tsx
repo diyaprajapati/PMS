@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Suspense } from "react"
 import {
   AudioWaveform,
   BookOpen,
@@ -121,19 +122,15 @@ const data = {
       icon: Settings2,
       items: [
         {
-          title: "General",
-          url: "#",
+          title: "Project Details",
+          url: "/settings/project-details",
         },
         {
-          title: "Team",
-          url: "#",
+          title: "Team Members",
+          url: "/settings/team-members",
         },
         {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
+          title: "Monitoring",
           url: "#",
         },
       ],
@@ -208,7 +205,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <Suspense fallback={null}>
+          <NavMain items={data.navMain} />
+        </Suspense>
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
