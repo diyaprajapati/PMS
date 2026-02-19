@@ -39,11 +39,24 @@ export function NavMain({
 
   // Helper to preserve project parameter in URLs
   const getUrlWithProject = (url: string) => {
-    if (url === '#' || !projectId) return url
-    // Only add project param to settings URLs that don't already have query params
-    if (url.startsWith('/settings/') && !url.includes('?')) {
+    if (!projectId || url === '#') return url
+
+    // Only adjust internal app routes
+    if (!url.startsWith('/')) return url
+
+    // Don't touch URLs that already have query params
+    if (url.includes('?')) return url
+
+    // Routes that should always preserve the project context
+    const shouldCarryProject =
+      url === '/dashboard' ||
+      url === '/sprints' ||
+      url.startsWith('/settings/')
+
+    if (shouldCarryProject) {
       return `${url}?project=${projectId}`
     }
+
     return url
   }
 

@@ -10,10 +10,16 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { DeleteProjectDialog } from '../projects/DeleteProjectDialog'
 import { EditProjectDialog, type Project } from '../projects/EditProjectDialog'
-import { useProjectFromSearchParams, type ProjectInfo } from '@/hooks/use-project-from-search-params'
+import { type ProjectInfo } from '@/hooks/use-project-from-search-params'
 
-export default function ProjectDetails() {
-    const { project, projectLoading, refresh } = useProjectFromSearchParams();
+type ProjectDetailsProps = {
+    projectId: string | null;
+    project: ProjectInfo | null;
+    projectLoading: boolean;
+    refresh: () => void;
+}
+
+export default function ProjectDetails({ projectId, project, projectLoading, refresh }: ProjectDetailsProps) {
     const [editProject, setEditProject] = useState<Project | null>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteProject, setDeleteProject] = useState<Project | null>(null);
@@ -112,8 +118,22 @@ export default function ProjectDetails() {
         );
     }
 
-    // Show error state if no project
-    if (!project) {
+    // Show error state only if projectId exists but project failed to load
+    // Don't show error if no projectId (user hasn't selected a project yet)
+    if (projectId && !project && !projectLoading) {
+        return (
+            <div className='flex justify-center'>
+                <Card className='flex p-4 md:w-[80%] w-full'>
+                    <div className='text-center text-muted-foreground'>
+                        <p>Failed to load project. Please try refreshing the page.</p>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    // If no projectId, show message to select a project
+    if (!projectId) {
         return (
             <div className='flex justify-center'>
                 <Card className='flex p-4 md:w-[80%] w-full'>
@@ -123,6 +143,11 @@ export default function ProjectDetails() {
                 </Card>
             </div>
         );
+    }
+
+    // If no project and not loading, don't render anything (let parent handle it)
+    if (!project) {
+        return null;
     }
 
   return (

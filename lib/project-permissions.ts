@@ -58,6 +58,19 @@ export async function hasProjectAccess(
 }
 
 /**
+ * Checks if a user owns a project.
+ */
+export async function isProjectOwner(
+  userId: string,
+  projectId: string
+): Promise<boolean> {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId },
+  });
+  return !!project;
+}
+
+/**
  * Gets the user's role in a project (OWNER, ADMIN, DEVELOPER, CLIENT, or null).
  */
 export async function getUserProjectRole(

@@ -9,6 +9,8 @@ import {
   Command,
   Frame,
   GalleryVerticalEnd,
+  Home,
+  Layers,
   Map,
   PieChart,
   Settings2,
@@ -36,6 +38,28 @@ export type SidebarUser = {
 
 // This is sample data (teams, nav, projects). User comes from API.
 const data = {
+  projects: [
+    {
+      name: "Dashboard",
+      url: "/dashboard",
+      icon: Home,
+    },
+    {
+      name: "Sprints",
+      url: "/sprints",
+      icon: Layers,
+    },
+    {
+      name: "Sales & Marketing",
+      url: "#",
+      icon: PieChart,
+    },
+    {
+      name: "Travel",
+      url: "#",
+      icon: Map,
+    },
+  ],
   teams: [
     {
       name: "Acme Inc",
@@ -136,23 +160,6 @@ const data = {
       ],
     },
   ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
-  ],
 }
 
 const defaultUser: SidebarUser = {
@@ -206,9 +213,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <Suspense fallback={null}>
-          <NavMain items={data.navMain} />
-        </Suspense>
         <NavProjects projects={data.projects} />
+        </Suspense>
+          <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter>
         <div className="flex w-full items-center justify-between gap-2">

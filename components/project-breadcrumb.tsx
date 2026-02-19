@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   BreadcrumbItem,
   BreadcrumbLink,
@@ -34,12 +35,16 @@ export function ProjectBreadcrumb({
       {projectId ? (
         <>
           <BreadcrumbItem>
-            {projectLoading ? (
+            {project ? (
+              <BreadcrumbLink asChild>
+                <Link href={dashboardUrl}>{project.name}</Link>
+              </BreadcrumbLink>
+            ) : projectLoading ? (
               <BreadcrumbPage>Loading…</BreadcrumbPage>
-            ) : project ? (
-              <BreadcrumbLink href={dashboardUrl}>{project.name}</BreadcrumbLink>
             ) : (
-              <BreadcrumbLink href={dashboardUrl}>Project</BreadcrumbLink>
+              <BreadcrumbLink asChild>
+                <Link href={dashboardUrl}>Project</Link>
+              </BreadcrumbLink>
             )}
           </BreadcrumbItem>
           <BreadcrumbSeparator />

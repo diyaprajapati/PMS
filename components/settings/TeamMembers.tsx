@@ -17,7 +17,6 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
 import { toast } from 'sonner'
-import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params'
 
 export type TeamMember = {
   id: string;
@@ -30,8 +29,11 @@ export type TeamMember = {
   updatedAt: string | null;
 };
 
-export default function TeamMembers() {
-  const { projectId } = useProjectFromSearchParams();
+type TeamMembersProps = {
+  projectId: string | null;
+};
+
+export default function TeamMembers({ projectId }: TeamMembersProps) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);

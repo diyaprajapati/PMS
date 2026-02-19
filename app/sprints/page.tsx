@@ -7,9 +7,9 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import { ProjectBreadcrumb } from '@/components/project-breadcrumb';
-import TeamMembers from '@/components/settings/TeamMembers';
+// import Sprints from '@/components/sprints/Sprints';
 
-function TeamMembersContent() {
+function SprintsContent() {
   const { projectId, project, projectLoading } = useProjectFromSearchParams();
   return (
     <>
@@ -25,13 +25,14 @@ function TeamMembersContent() {
               projectId={projectId}
               project={project}
               projectLoading={projectLoading}
-              tabName="Team Members"
+              tabName="Sprints"
             />
           </Breadcrumb>
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0" >
-        <TeamMembers projectId={projectId} />
+        {/* <Sprints /> */}
+        Hey
       </div>
     </>
   );
@@ -46,10 +47,10 @@ export default function Page() {
           <header className="flex h-16 shrink-0 items-center gap-2 px-4">
             <div className="h-4 w-4 animate-pulse rounded bg-muted" />
             <Separator orientation="vertical" className="h-4" />
-            <span className="text-muted-foreground text-sm">Team Members</span>
+            <span className="text-muted-foreground text-sm">Sprints</span>
           </header>
         }>
-          <TeamMembersContent />
+          <SprintsContent />
         </Suspense>
       </SidebarInset>
     </SidebarProvider>

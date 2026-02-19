@@ -1,31 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/get-current-user";
-import { canManageProjectMembers } from "@/lib/project-permissions";
+import { requireMemberManagement } from "@/lib/route-auth";
 
 type RouteContext = { params: Promise<{ id: string; memberId: string }> };
 
 // PATCH /api/projects/[id]/members/[memberId] – update a member's role
 export async function PATCH(req: Request, context: RouteContext) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireMemberManagement(context.params);
+  if (!auth.success) return auth.response;
+  const { projectId } = auth;
 
-  const { id: projectId, memberId } = await context.params;
-  if (!projectId || !memberId) {
+  const { memberId } = await context.params;
+  if (!memberId) {
     return NextResponse.json(
-      { error: "Project ID and Member ID are required" },
+      { error: "Member ID is required" },
       { status: 400 }
-    );
-  }
-
-  // Check if user can manage members
-  const canManage = await canManageProjectMembers(user.id, projectId);
-  if (!canManage) {
-    return NextResponse.json(
-      { error: "You don't have permission to manage members of this project" },
-      { status: 403 }
     );
   }
 
@@ -120,25 +109,15 @@ export async function PATCH(req: Request, context: RouteContext) {
 
 // DELETE /api/projects/[id]/members/[memberId] – remove a member from the project
 export async function DELETE(_req: Request, context: RouteContext) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireMemberManagement(context.params);
+  if (!auth.success) return auth.response;
+  const { user, projectId } = auth;
 
-  const { id: projectId, memberId } = await context.params;
-  if (!projectId || !memberId) {
+  const { memberId } = await context.params;
+  if (!memberId) {
     return NextResponse.json(
-      { error: "Project ID and Member ID are required" },
+      { error: "Member ID is required" },
       { status: 400 }
-    );
-  }
-
-  // Check if user can manage members
-  const canManage = await canManageProjectMembers(user.id, projectId);
-  if (!canManage) {
-    return NextResponse.json(
-      { error: "You don't have permission to manage members of this project" },
-      { status: 403 }
     );
   }
 

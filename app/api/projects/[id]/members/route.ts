@@ -1,31 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/get-current-user";
-import { canManageProjectMembers, hasProjectAccess } from "@/lib/project-permissions";
+import { requireProjectAccess, requireMemberManagement } from "@/lib/route-auth";
 import { sendProjectInvitationEmail } from "@/lib/email";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 // GET /api/projects/[id]/members – get all members of a project
 export async function GET(_req: Request, context: RouteContext) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: projectId } = await context.params;
-  if (!projectId) {
-    return NextResponse.json({ error: "Project ID required" }, { status: 400 });
-  }
-
-  // Check if user has access to the project
-  const hasAccess = await hasProjectAccess(user.id, projectId);
-  if (!hasAccess) {
-    return NextResponse.json(
-      { error: "You don't have access to this project" },
-      { status: 403 }
-    );
-  }
+  const auth = await requireProjectAccess(context.params);
+  if (!auth.success) return auth.response;
+  const { projectId } = auth;
 
   try {
     // Get project to find owner userId
@@ -120,24 +104,9 @@ export async function GET(_req: Request, context: RouteContext) {
 
 // POST /api/projects/[id]/members – add a new member to the project
 export async function POST(req: Request, context: RouteContext) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id: projectId } = await context.params;
-  if (!projectId) {
-    return NextResponse.json({ error: "Project ID required" }, { status: 400 });
-  }
-
-  // Check if user can manage members
-  const canManage = await canManageProjectMembers(user.id, projectId);
-  if (!canManage) {
-    return NextResponse.json(
-      { error: "You don't have permission to manage members of this project" },
-      { status: 403 }
-    );
-  }
+  const auth = await requireMemberManagement(context.params);
+  if (!auth.success) return auth.response;
+  const { user, projectId } = auth;
 
   let body: { email: string; role: "ADMIN" | "DEVELOPER" | "CLIENT" };
   try {
