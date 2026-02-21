@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import { ProjectBreadcrumb } from '@/components/project-breadcrumb';
-// import Sprints from '@/components/sprints/Sprints';
+import Sprint from '@/components/sprints/Sprint';
 
 function SprintsContent() {
   const { projectId, project, projectLoading } = useProjectFromSearchParams();
@@ -30,9 +30,10 @@ function SprintsContent() {
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0" >
-        {/* <Sprints /> */}
-        Hey
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0 overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <Sprint />
+        </div>
       </div>
     </>
   );
