@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import { EditSprintDialog } from './EditSprintDialog';
 import { DeleteSprintDialog, type Sprint } from './DeleteSprintDialog';
+import { SprintStatusBadge } from './SprintStatusBadge';
 
 const tableHeaderRowClass = "bg-muted hover:bg-muted font-semibold";
 
@@ -117,7 +118,7 @@ export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell colSpan={4} className="text-center text-muted-foreground">
+            <TableCell colSpan={5} className="text-center text-muted-foreground">
               Loading...
             </TableCell>
           </TableRow>
@@ -135,6 +136,7 @@ export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
           <TableHeader>
             <TableRow className={tableHeaderRowClass}>
               <TableHead>Title</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Start Date</TableHead>
               <TableHead>End Date</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -142,7 +144,7 @@ export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={4} className="text-center py-12">
+              <TableCell colSpan={5} className="text-center py-12">
                 <div className='flex flex-col items-center justify-center gap-2'>
                   <p className='text-muted-foreground'>No sprints found</p>
                   <p className='text-sm text-muted-foreground'>Create your first sprint to get started</p>
@@ -176,6 +178,7 @@ export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
         <TableHeader>
           <TableRow className={tableHeaderRowClass}>
             <TableHead>Title</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Start Date</TableHead>
             <TableHead>End Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -185,6 +188,9 @@ export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
           {sprints.map((sprint) => (
             <TableRow key={sprint.id}>
               <TableCell className="font-medium">{sprint.title}</TableCell>
+              <TableCell>
+                <SprintStatusBadge status={sprint.status} />
+              </TableCell>
               <TableCell>
                 {sprint.startDate ? format(new Date(sprint.startDate), 'MMM dd, yyyy') : '-'}
               </TableCell>

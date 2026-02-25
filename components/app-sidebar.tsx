@@ -10,6 +10,7 @@ import {
   Frame,
   GalleryVerticalEnd,
   Home,
+  Inbox,
   Layers,
   Map,
   PieChart,
@@ -50,14 +51,9 @@ const data = {
       icon: Layers,
     },
     {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
+      name: "Backlog",
+      url: "/backlog",
+      icon: Inbox,
     },
   ],
   teams: [

@@ -167,27 +167,29 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <Logo />
-      <div className="flex flex-col gap-4 m-10 md:m-20">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <BookPlus className="size-8 text-primary" />
-              <Label className="text-2xl font-bold">Projects</Label>
+    <div className="flex flex-col min-h-screen">
+      <div className="px-6 py-4 border-b border-border/50">
+        <Logo />
+      </div>
+      <div className="flex flex-col gap-8 px-6 py-8 md:px-12 md:py-12 lg:px-16 lg:py-16 max-w-[1600px] mx-auto w-full">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-6">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <BookPlus className="size-9 text-primary" strokeWidth={2} />
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Projects</h1>
             </div>
-            <p className="text-muted-foreground">Manage all your projects here.</p>
+            <p className="text-muted-foreground text-base leading-relaxed">Manage all your projects in one place.</p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:flex-1 sm:max-w-md">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:flex-1 sm:max-w-xl">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" aria-hidden />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" aria-hidden />
               <Input
                 type="search"
                 placeholder="Search by name or description…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search projects"
-                className="pl-9"
+                className="pl-10 h-11 transition-all duration-200"
               />
               {/* {isSearching && (
                 <button
@@ -205,11 +207,11 @@ export default function ProjectsPage() {
         </div>
 
         {loading ? (
-          <p className="text-muted-foreground">Loading projects…</p>
+          <p className="text-muted-foreground text-base">Loading projects…</p>
         ) : error ? (
-          <p className="text-destructive">{error}</p>
+          <p className="text-destructive text-base">{error}</p>
         ) : filteredProjects.length === 0 ? (
-          <div className="flex flex-col gap-5 justify-center items-center w-full">
+          <div className="flex flex-col gap-6 justify-center items-center w-full py-12">
             <Empty>
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -238,18 +240,18 @@ export default function ProjectsPage() {
         ) : (
           <>
             {isSearching && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground font-medium">
                 Showing {filteredProjects.length} of {projects.length} project{projects.length === 1 ? '' : 's'}
               </p>
             )}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProjects.map((project) => (
-              <Card key={project.id} className="p-4 flex flex-col">
-                <CardHeader className="flex flex-row items-start justify-between gap-2 p-0 pb-2">
-                  <CardTitle className="text-lg leading-tight wrap-break-word">
+              <Card key={project.id} className="group p-6 flex flex-col transition-all duration-200 hover:shadow-md hover:border-primary/20">
+                <CardHeader className="flex flex-row items-start justify-between gap-3 p-0 pb-4">
+                  <CardTitle className="text-xl leading-tight wrap-break-word font-semibold">
                     <Link
                       href={`/dashboard?project=${project.id}`}
-                      className="hover:underline focus:outline-none focus:underline cursor-pointer hover:text-primary transition-colors duration-200 ease-in-out"
+                      className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer hover:text-primary transition-all duration-200"
                     >
                       {project.name}
                     </Link>
@@ -259,7 +261,7 @@ export default function ProjectsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 shrink-0 cursor-pointer"
+                        className="size-9 shrink-0 cursor-pointer transition-all duration-200 hover:bg-accent/80 opacity-70 group-hover:opacity-100"
                         aria-label="Project options"
                       >
                         <MoreVertical className="size-4" />
@@ -286,8 +288,8 @@ export default function ProjectsPage() {
                   </DropdownMenu>
                 </CardHeader>
                 <CardContent className="p-0 flex-1">
-                  <p className="text-sm text-muted-foreground wrap-break-word">
-                    {project.description || 'No description.'}
+                  <p className="text-sm text-muted-foreground wrap-break-word leading-relaxed">
+                    {project.description || 'No description provided.'}
                   </p>
                 </CardContent>
               </Card>

@@ -13,66 +13,66 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SprintStatus } from '@/lib/generated/prisma/client';
+import type { Task } from '@/types/task';
 
-export type Sprint = {
-  id: string;
-  title: string;
-  startDate: string | null;
-  endDate: string | null;
-  status: SprintStatus;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type DeleteSprintDialogProps = {
-  sprint: Sprint | null;
+type DeleteTaskDialogProps = {
+  task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (sprint: Sprint) => void | Promise<void>;
+  onConfirm: (task: Task) => void | Promise<void>;
   deleting?: boolean;
 };
 
-export function DeleteSprintDialog({
-  sprint,
+export function DeleteTaskDialog({
+  task,
   open,
   onOpenChange,
   onConfirm,
   deleting = false,
-}: DeleteSprintDialogProps) {
+}: DeleteTaskDialogProps) {
   const [confirmValue, setConfirmValue] = useState('');
 
   useEffect(() => {
     if (open) setConfirmValue('');
-  }, [open, sprint?.id]);
+  }, [open, task?.id]);
 
-  if (!sprint) return null;
+  if (!task) return null;
 
-  const nameMatches = confirmValue.trim() === sprint.title;
+  const nameMatches = confirmValue.trim() === task.title;
   const canDelete = nameMatches && !deleting;
 
   const handleConfirm = async () => {
     if (!canDelete) return;
-    await onConfirm(sprint);
+    await onConfirm(task);
   };
+
+  const hasSubtasks = task._count && task._count.subtasks > 0;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent size="default" className="sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete sprint</AlertDialogTitle>
+          <AlertDialogTitle>Delete task</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete &quot;{sprint.title}&quot;? This action cannot be undone.
+            Are you sure you want to delete &quot;{task.title}&quot;?
+            {hasSubtasks && (
+              <span className="block mt-2 text-destructive font-medium">
+                Warning: This task has {task._count?.subtasks} subtask{task._count?.subtasks === 1 ? '' : 's'} that will also be deleted.
+              </span>
+            )}
+            <span className="block mt-2">
+              This action cannot be undone.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="grid gap-2 py-2">
           <Label htmlFor="delete-confirm-title" className="text-sm font-medium">
-            Type <span className="font-mono font-semibold text-foreground">&quot;{sprint.title}&quot;</span> to confirm
+            Type <span className="font-mono font-semibold text-foreground">&quot;{task.title}&quot;</span> to confirm
           </Label>
           <Input
             id="delete-confirm-title"
             type="text"
-            placeholder="Enter sprint title"
+            placeholder="Enter task title"
             value={confirmValue}
             onChange={(e) => setConfirmValue(e.target.value)}
             className="font-mono"

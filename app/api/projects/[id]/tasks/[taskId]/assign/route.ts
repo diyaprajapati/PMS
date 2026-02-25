@@ -1,0 +1,112 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireMemberManagement } from "@/lib/route-auth";
+
+type RouteContext = { params: Promise<{ id: string; taskId: string }> };
+
+// PATCH /api/projects/[id]/tasks/[taskId]/assign – assign task to a member
+export async function PATCH(req: Request, context: RouteContext) {
+  const auth = await requireMemberManagement(context.params);
+  if (!auth.success) return auth.response;
+  const { projectId } = auth;
+  const routeParams = await context.params;
+  const taskId = routeParams.taskId;
+
+  if (!taskId) {
+    return NextResponse.json(
+      { error: "Task ID is required" },
+      { status: 400 }
+    );
+  }
+
+  let body: {
+    assigneeId?: string | null;
+  };
+
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
+  }
+
+  if (body.assigneeId === undefined) {
+    return NextResponse.json(
+      { error: "assigneeId is required" },
+      { status: 400 }
+    );
+  }
+
+  // Validate assignee exists and is a member of the project
+  if (body.assigneeId) {
+    const member = await prisma.projectMember.findUnique({
+      where: { id: body.assigneeId },
+      select: { projectId: true },
+    });
+
+    if (!member) {
+      return NextResponse.json(
+        { error: "Assignee not found" },
+        { status: 404 }
+      );
+    }
+
+    if (member.projectId !== projectId) {
+      return NextResponse.json(
+        { error: "Assignee is not a member of this project" },
+        { status: 400 }
+      );
+    }
+  }
+
+  try {
+    const updatedTask = await prisma.task.update({
+      where: {
+        id: taskId,
+        projectId, // Ensure task belongs to project
+      },
+      data: {
+        assigneeId: body.assigneeId,
+      },
+      include: {
+        assignee: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
+          },
+        },
+        sprint: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          },
+        },
+        _count: {
+          select: {
+            subtasks: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(updatedTask);
+  } catch (error: any) {
+    console.error("Error assigning task:", error);
+    if (error.code === "P2025") {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+    return NextResponse.json(
+      { error: "Failed to assign task" },
+      { status: 500 }
+    );
+  }
+}

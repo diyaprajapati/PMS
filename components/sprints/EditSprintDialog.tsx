@@ -17,15 +17,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
+import { SprintStatus } from '@/lib/generated/prisma/client';
 
 type Sprint = {
   id: string;
   title: string;
   startDate: string | null;
   endDate: string | null;
+  status: SprintStatus;
 };
 
 type EditSprintDialogProps = {
@@ -45,6 +48,7 @@ export function EditSprintDialog({
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [status, setStatus] = useState<SprintStatus>(SprintStatus.NOT_STARTED);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -53,6 +57,7 @@ export function EditSprintDialog({
       setTitle(sprint.title);
       setStartDate(sprint.startDate ? new Date(sprint.startDate) : undefined);
       setEndDate(sprint.endDate ? new Date(sprint.endDate) : undefined);
+      setStatus(sprint.status);
       setTitleError(null);
     }
   }, [sprint, open]);
@@ -88,6 +93,7 @@ export function EditSprintDialog({
           title: trimmedTitle,
           startDate: startDate || null,
           endDate: endDate || null,
+          status: status,
         }),
       });
       const data = await res.json();
@@ -187,6 +193,19 @@ export function EditSprintDialog({
                   />
                 </PopoverContent>
               </Popover>
+            </Field>
+            <Field>
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={status} onValueChange={(value) => setStatus(value as SprintStatus)}>
+                <SelectTrigger id="edit-status">
+                  <SelectValue placeholder="Select sprint status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SprintStatus.NOT_STARTED}>Not Started</SelectItem>
+                  <SelectItem value={SprintStatus.ACTIVE}>Active</SelectItem>
+                  <SelectItem value={SprintStatus.COMPLETED}>Completed</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
           </FieldGroup>
           <DialogFooter className='flex justify-end mt-4'>
