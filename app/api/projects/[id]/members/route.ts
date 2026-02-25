@@ -12,85 +12,50 @@ export async function GET(_req: Request, context: RouteContext) {
   const { projectId } = auth;
 
   try {
-    // Get project to find owner userId
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      select: {
-        userId: true,
-      },
+      select: { userId: true },
     });
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Get owner user details
-    const owner = await prisma.user.findUnique({
-      where: { id: project.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        image: true,
-      },
+    // Ensure the project owner always has a real ProjectMember record so they
+    // can be assigned to tasks (task.assigneeId references ProjectMember.id).
+    // This upsert is idempotent – it only creates the record once.
+    await prisma.projectMember.upsert({
+      where: { projectId_userId: { projectId, userId: project.userId } },
+      update: {},
+      create: { projectId, userId: project.userId, role: "OWNER" },
     });
 
-    if (!owner) {
-      return NextResponse.json({ error: "Project owner not found" }, { status: 404 });
-    }
-
-    // Get all members
+    // Fetch all members (owner is now guaranteed to be in this list)
     const members = await prisma.projectMember.findMany({
       where: { projectId },
       include: {
         user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            image: true,
-          },
+          select: { id: true, email: true, name: true, image: true },
         },
       },
-      orderBy: {
-        createdAt: "asc",
-      },
+      orderBy: { createdAt: "asc" },
     });
 
-    // Format response: owner + members
-    const membersList = [
-      {
-        id: `owner-${owner.id}`,
-        userId: owner.id,
-        email: owner.email,
-        name: owner.name,
-        image: owner.image,
-        role: "OWNER" as const,
-        createdAt: null,
-        updatedAt: null,
-      },
-      ...members.map((member: {
-        id: string;
-        role: string;
-        createdAt: Date;
-        updatedAt: Date;
-        user: {
-          id: string;
-          email: string;
-          name: string | null;
-          image: string | null;
-        };
-      }) => ({
-        id: member.id,
-        userId: member.user.id,
-        email: member.user.email,
-        name: member.user.name,
-        image: member.user.image,
-        role: member.role,
-        createdAt: member.createdAt.toISOString(),
-        updatedAt: member.updatedAt.toISOString(),
-      })),
-    ];
+    // Put owner first, then everyone else
+    const ownerEntry = members.find((m) => m.userId === project.userId);
+    const others = members.filter((m) => m.userId !== project.userId);
+    const ordered = ownerEntry ? [ownerEntry, ...others] : members;
+
+    const membersList = ordered.map((member) => ({
+      id: member.id,
+      userId: member.user.id,
+      email: member.user.email,
+      name: member.user.name,
+      image: member.user.image,
+      role: member.role,
+      createdAt: member.createdAt.toISOString(),
+      updatedAt: member.updatedAt.toISOString(),
+    }));
 
     return NextResponse.json(membersList);
   } catch (error) {

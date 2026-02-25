@@ -99,3 +99,86 @@ This is an automated message. Please do not reply to this email.
 
   await transporter.sendMail(mailOptions);
 }
+
+type TaskAssignedEmailParams = {
+  toEmail: string;
+  assigneeName: string | null;
+  assignerName: string | null;
+  assignerEmail: string;
+  projectName: string;
+  taskTitle: string;
+  projectId: string;
+};
+
+export async function sendTaskAssignedEmail(params: TaskAssignedEmailParams): Promise<void> {
+  const {
+    toEmail,
+    assigneeName,
+    assignerName,
+    assignerEmail,
+    projectName,
+    taskTitle,
+    projectId,
+  } = params;
+
+  const transporter = createTransporter();
+
+  const appUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const projectUrl = `${appUrl}/projects?project=${projectId}`;
+
+  const displayAssignee = assigneeName || toEmail;
+  const displayAssigner = assignerName || assignerEmail;
+
+  const mailOptions = {
+    from: `"Project Management System" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `New task assigned in "${projectName}"`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Task Assigned</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #e5e7eb; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #020617;">
+          <div style="background-color: #020617; border: 1px solid #1f2937; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h1 style="color: #38bdf8; margin-top: 0; font-size: 20px;">New task assigned to you</h1>
+            <p>Hello ${displayAssignee},</p>
+            <p>
+              <strong>${displayAssigner}</strong> has assigned you a task in the project
+              <strong>"${projectName}"</strong>.
+            </p>
+            <p>
+              <strong>Task:</strong> ${taskTitle}
+            </p>
+            <div style="margin: 24px 0; text-align: center;">
+              <a href="${projectUrl}"
+                 style="background-color: #38bdf8; color: white; padding: 10px 20px; text-decoration: none; border-radius: 999px; display: inline-block; font-weight: 600; font-size: 14px;">
+                View project and tasks
+              </a>
+            </div>
+            <p style="color: #9ca3af; font-size: 13px; margin-top: 24px;">
+              If you weren't expecting this, you can ignore this email.
+            </p>
+          </div>
+        </body>
+      </html>
+    `,
+    text: `
+New task assigned
+
+Hello ${displayAssignee},
+
+${displayAssigner} has assigned you a task in the project "${projectName}".
+
+Task: ${taskTitle}
+
+View project and tasks: ${projectUrl}
+
+If you weren't expecting this, you can ignore this email.
+    `.trim(),
+  };
+
+  await transporter.sendMail(mailOptions);
+}

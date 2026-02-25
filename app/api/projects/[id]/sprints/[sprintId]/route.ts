@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { parseDate } from "@/lib/utils";
+import { SprintStatus } from "@/lib/generated/prisma/client";
 
 type RouteContext = { params: Promise<{ id: string; sprintId: string }> };
 
@@ -21,6 +22,7 @@ export async function PATCH(req: Request, context: RouteContext) {
         title?: string
         startDate?: string
         endDate?: string
+        status?: string
     };
     try {
         body = await req.json();
@@ -53,6 +55,16 @@ export async function PATCH(req: Request, context: RouteContext) {
         data.endDate = date;
     }
 
+    if(typeof body.status === "string") {
+        const status = body.status.toUpperCase();
+        if(!Object.values(SprintStatus).includes(status as SprintStatus)) {
+            return NextResponse.json({
+                error: "Invalid status. Must be one of: NOT_STARTED, ACTIVE, COMPLETED"
+            }, { status: 400 });
+        }
+        data.status = status;
+    }
+
     if(!Object.keys(data).length) {
         return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
@@ -69,6 +81,7 @@ export async function PATCH(req: Request, context: RouteContext) {
                 title: true,
                 startDate: true,
                 endDate: true,
+                status: true,
             }
         });
         return NextResponse.json(updatedSprint);
