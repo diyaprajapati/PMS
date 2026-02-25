@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireMemberManagement } from "@/lib/route-auth";
+import { sendTaskAssignedEmail } from "@/lib/email";
+import { getUserProjectRole } from "@/lib/project-permissions";
+import { canAssignRoleTo } from "@/lib/role-rank";
 
 type RouteContext = { params: Promise<{ id: string; taskId: string }> };
 
@@ -8,7 +11,7 @@ type RouteContext = { params: Promise<{ id: string; taskId: string }> };
 export async function PATCH(req: Request, context: RouteContext) {
   const auth = await requireMemberManagement(context.params);
   if (!auth.success) return auth.response;
-  const { projectId } = auth;
+  const { projectId, user } = auth;
   const routeParams = await context.params;
   const taskId = routeParams.taskId;
 
@@ -39,11 +42,30 @@ export async function PATCH(req: Request, context: RouteContext) {
     );
   }
 
-  // Validate assignee exists and is a member of the project
+  // Validate roles and membership
+  // Get actor role
+  const actorRole = await getUserProjectRole(user.id, projectId);
+  if (!actorRole) {
+    return NextResponse.json(
+      { error: "You are not a member of this project" },
+      { status: 403 }
+    );
+  }
+
   if (body.assigneeId) {
     const member = await prisma.projectMember.findUnique({
       where: { id: body.assigneeId },
-      select: { projectId: true },
+      select: {
+        id: true,
+        projectId: true,
+        role: true,
+        user: {
+          select: {
+            email: true,
+            name: true,
+          },
+        },
+      },
     });
 
     if (!member) {
@@ -59,6 +81,14 @@ export async function PATCH(req: Request, context: RouteContext) {
         { status: 400 }
       );
     }
+
+    const allowed = canAssignRoleTo(actorRole, member.role);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "You cannot assign tasks to a higher role" },
+        { status: 403 }
+      );
+    }
   }
 
   try {
@@ -71,23 +101,18 @@ export async function PATCH(req: Request, context: RouteContext) {
         assigneeId: body.assigneeId,
       },
       include: {
-        assignee: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-              },
-            },
-          },
-        },
+        assignee: true,
         sprint: {
           select: {
             id: true,
             title: true,
             status: true,
+          },
+        },
+        project: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         _count: {
@@ -97,6 +122,35 @@ export async function PATCH(req: Request, context: RouteContext) {
         },
       },
     });
+
+    // Fire-and-forget assignment email (do not block response)
+    if (updatedTask.assignee && body.assigneeId) {
+      const assignee = await prisma.projectMember.findUnique({
+        where: { id: updatedTask.assigneeId! },
+        select: {
+          user: {
+            select: {
+              email: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      if (assignee?.user?.email) {
+        void sendTaskAssignedEmail({
+          toEmail: assignee.user.email,
+          assigneeName: assignee.user.name,
+          assignerName: user?.name ?? null,
+          assignerEmail: user?.email ?? "",
+          projectName: updatedTask.project?.name ?? "Project",
+          taskTitle: updatedTask.title,
+          projectId: projectId,
+        }).catch((err) => {
+          console.error("Failed to send task assignment email:", err);
+        });
+      }
+    }
 
     return NextResponse.json(updatedTask);
   } catch (error: any) {

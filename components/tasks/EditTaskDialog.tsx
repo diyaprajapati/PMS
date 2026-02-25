@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from 'sonner';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
-import type { Task, TaskStatus } from '@/types/task';
+import type { Task, TaskStatus, TaskPriority } from '@/types/task';
 
 type Sprint = {
   id: string;
@@ -50,6 +50,7 @@ export function EditTaskDialog({
   const [description, setDescription] = useState('');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
   const [status, setStatus] = useState<TaskStatus>("TODO");
+  const [priority, setPriority] = useState<TaskPriority>("P3");
   const [estimatedHours, setEstimatedHours] = useState('');
   const [sprintId, setSprintId] = useState<string | null>(null);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
@@ -68,6 +69,7 @@ export function EditTaskDialog({
       setEstimatedHours(task.estimatedHours?.toString() || '');
       setSprintId(task.sprintId);
       setAssigneeId(task.assigneeId);
+      setPriority(task.priority ?? "P3");
       setTitleError(null);
     }
   }, [task, open]);
@@ -126,21 +128,32 @@ export function EditTaskDialog({
       return;
     }
 
+    const payload: Record<string, unknown> = {
+      title: trimmedTitle,
+      description: description.trim() || null,
+      acceptanceCriteria: acceptanceCriteria.trim() || null,
+      priority,
+      estimatedHours: hoursValue,
+      assigneeId: assigneeId || null,
+    };
+
+    // Only parents can control sprint directly; subtasks inherit it
+    if (!task.parentTaskId) {
+      payload.sprintId = sprintId || null;
+    }
+
+    // Only allow status changes for subtasks; parents with subtasks are controlled by rules
+    if (task.parentTaskId) {
+      payload.status = status;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description: description.trim() || null,
-          acceptanceCriteria: acceptanceCriteria.trim() || null,
-          status,
-          estimatedHours: hoursValue,
-          sprintId: sprintId || null,
-          assigneeId: assigneeId || null,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
@@ -205,6 +218,23 @@ export function EditTaskDialog({
               </Select>
             </Field>
 
+          <Field>
+            <Label htmlFor="edit-task-priority">Priority</Label>
+            <Select value={priority} onValueChange={(value) => setPriority(value as TaskPriority)}>
+              <SelectTrigger id="edit-task-priority">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="P0">P0 – Critical</SelectItem>
+                <SelectItem value="P1">P1 – High</SelectItem>
+                <SelectItem value="P2">P2 – Medium High</SelectItem>
+                <SelectItem value="P3">P3 – Medium</SelectItem>
+                <SelectItem value="P4">P4 – Low</SelectItem>
+                <SelectItem value="P5">P5 – Lowest</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
             <Field>
               <Label htmlFor="edit-task-description">Description</Label>
               <Textarea
@@ -245,7 +275,11 @@ export function EditTaskDialog({
 
             <Field>
               <Label htmlFor="edit-task-sprint">Sprint</Label>
-              <Select value={sprintId || "backlog"} onValueChange={(value) => setSprintId(value === "backlog" ? null : value)}>
+              <Select
+                value={sprintId || "backlog"}
+                onValueChange={(value) => setSprintId(value === "backlog" ? null : value)}
+                disabled={!!task.parentTaskId}
+              >
                 <SelectTrigger id="edit-task-sprint">
                   <SelectValue placeholder={loadingData ? "Loading..." : "Select sprint"} />
                 </SelectTrigger>

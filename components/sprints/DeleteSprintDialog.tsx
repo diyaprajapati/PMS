@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SprintStatus } from '@/lib/generated/prisma/client';
+import type { SprintStatus } from '@/types/task';
 
 export type Sprint = {
   id: string;

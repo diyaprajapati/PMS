@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { canModifyTask, canDeleteTask } from "@/lib/task-permissions";
 import { TaskStatus } from "@/lib/generated/prisma/client";
+import { TaskPriority } from "@/lib/generated/prisma/enums";
+import { updateTaskWithRules } from "@/lib/task-service";
 
 type RouteContext = { params: Promise<{ id: string; taskId: string }> };
 
@@ -127,7 +129,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     status?: string;
     estimatedHours?: number | null;
     sprintId?: string | null;
-    assigneeId?: string | null;
+    priority?: TaskPriority | null;
   };
 
   try {
@@ -139,34 +141,10 @@ export async function PATCH(req: Request, context: RouteContext) {
     );
   }
 
-  const data: any = {};
-
-  // Validate and add title
-  if (typeof body.title === "string") {
-    const title = body.title.trim();
-    if (!title) {
-      return NextResponse.json(
-        { error: "Title cannot be empty" },
-        { status: 400 }
-      );
-    }
-    data.title = title;
-  }
-
-  // Add description
-  if (body.description !== undefined) {
-    data.description = body.description;
-  }
-
-  // Add acceptance criteria
-  if (body.acceptanceCriteria !== undefined) {
-    data.acceptanceCriteria = body.acceptanceCriteria;
-  }
-
-  // Validate and add status
+  let statusEnum: TaskStatus | undefined;
   if (body.status) {
-    const status = body.status.toUpperCase();
-    if (!Object.values(TaskStatus).includes(status as TaskStatus)) {
+    const s = body.status.toUpperCase();
+    if (!Object.values(TaskStatus).includes(s as TaskStatus)) {
       return NextResponse.json(
         {
           error: "Invalid status. Must be one of: TODO, IN_PROGRESS, DONE",
@@ -174,110 +152,20 @@ export async function PATCH(req: Request, context: RouteContext) {
         { status: 400 }
       );
     }
-    data.status = status;
-  }
-
-  // Validate and add estimated hours
-  if (body.estimatedHours !== undefined) {
-    if (body.estimatedHours !== null && body.estimatedHours < 0) {
-      return NextResponse.json(
-        { error: "Estimated hours must be a positive number" },
-        { status: 400 }
-      );
-    }
-    data.estimatedHours = body.estimatedHours;
-  }
-
-  // Validate and add sprint
-  if (body.sprintId !== undefined) {
-    if (body.sprintId) {
-      const sprint = await prisma.sprint.findUnique({
-        where: { id: body.sprintId },
-        select: { projectId: true },
-      });
-
-      if (!sprint) {
-        return NextResponse.json(
-          { error: "Sprint not found" },
-          { status: 404 }
-        );
-      }
-
-      if (sprint.projectId !== projectId) {
-        return NextResponse.json(
-          { error: "Sprint does not belong to this project" },
-          { status: 400 }
-        );
-      }
-    }
-    data.sprintId = body.sprintId;
-  }
-
-  // Validate and add assignee
-  if (body.assigneeId !== undefined) {
-    if (body.assigneeId) {
-      const member = await prisma.projectMember.findUnique({
-        where: { id: body.assigneeId },
-        select: { projectId: true },
-      });
-
-      if (!member) {
-        return NextResponse.json(
-          { error: "Assignee not found" },
-          { status: 404 }
-        );
-      }
-
-      if (member.projectId !== projectId) {
-        return NextResponse.json(
-          { error: "Assignee is not a member of this project" },
-          { status: 400 }
-        );
-      }
-    }
-    data.assigneeId = body.assigneeId;
-  }
-
-  if (!Object.keys(data).length) {
-    return NextResponse.json(
-      { error: "No valid fields to update" },
-      { status: 400 }
-    );
+    statusEnum = s as TaskStatus;
   }
 
   try {
-    const updatedTask = await prisma.task.update({
-      where: {
-        id: taskId,
-        projectId, // Ensure task belongs to project
-      },
-      data,
-      include: {
-        assignee: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-              },
-            },
-          },
-        },
-        sprint: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-          },
-        },
-        _count: {
-          select: {
-            subtasks: true,
-          },
-        },
-      },
+    const updatedTask = await updateTaskWithRules({
+      projectId,
+      taskId,
+      title: body.title,
+      description: body.description,
+      acceptanceCriteria: body.acceptanceCriteria,
+      status: statusEnum,
+      estimatedHours: body.estimatedHours,
+      sprintId: body.sprintId,
+      priority: body.priority ?? undefined,
     });
 
     return NextResponse.json(updatedTask);
@@ -287,8 +175,8 @@ export async function PATCH(req: Request, context: RouteContext) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
     return NextResponse.json(
-      { error: "Failed to update task" },
-      { status: 500 }
+      { error: error?.message ?? "Failed to update task" },
+      { status: 400 }
     );
   }
 }

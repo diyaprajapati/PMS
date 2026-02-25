@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
-import { SprintStatus } from '@/lib/generated/prisma/client';
+import type { SprintStatus } from '@/types/task';
 
 type Sprint = {
   id: string;
@@ -48,7 +48,7 @@ export function EditSprintDialog({
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [status, setStatus] = useState<SprintStatus>(SprintStatus.NOT_STARTED);
+  const [status, setStatus] = useState<SprintStatus>('NOT_STARTED');
   const [titleError, setTitleError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -201,9 +201,9 @@ export function EditSprintDialog({
                   <SelectValue placeholder="Select sprint status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SprintStatus.NOT_STARTED}>Not Started</SelectItem>
-                  <SelectItem value={SprintStatus.ACTIVE}>Active</SelectItem>
-                  <SelectItem value={SprintStatus.COMPLETED}>Completed</SelectItem>
+                  <SelectItem value="NOT_STARTED">Not Started</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
                 </SelectContent>
               </Select>
             </Field>

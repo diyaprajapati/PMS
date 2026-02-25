@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { TaskStatus } from "@/lib/generated/prisma/client";
+import { TaskPriority } from "@/lib/generated/prisma/enums";
+import { createTaskWithRules } from "@/lib/task-service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -15,6 +17,7 @@ export async function GET(req: Request, context: RouteContext) {
   const sprintId = searchParams.get("sprintId");
   const status = searchParams.get("status");
   const assigneeId = searchParams.get("assigneeId");
+  const priority = searchParams.get("priority");
   const parentTaskId = searchParams.get("parentTaskId");
   const includeSubtasks = searchParams.get("includeSubtasks") === "true";
 
@@ -38,6 +41,14 @@ export async function GET(req: Request, context: RouteContext) {
     // Filter by assignee
     if (assigneeId) {
       where.assigneeId = assigneeId;
+    }
+
+    // Filter by priority
+    if (
+      priority &&
+      Object.values(TaskPriority).includes(priority as TaskPriority)
+    ) {
+      where.priority = priority;
     }
 
     // Filter by parent task (for subtasks)
@@ -127,6 +138,7 @@ export async function POST(req: Request, context: RouteContext) {
     sprintId?: string | null;
     assigneeId?: string | null;
     parentTaskId?: string | null;
+    priority?: TaskPriority | null;
   };
 
   try {
@@ -144,131 +156,25 @@ export async function POST(req: Request, context: RouteContext) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
 
-  // Validate estimated hours
-  if (
-    body.estimatedHours !== null &&
-    body.estimatedHours !== undefined &&
-    body.estimatedHours < 0
-  ) {
-    return NextResponse.json(
-      { error: "Estimated hours must be a positive number" },
-      { status: 400 }
-    );
-  }
-
   try {
-    // Validate parent task exists and belongs to project
-    if (body.parentTaskId) {
-      const parentTask = await prisma.task.findUnique({
-        where: { id: body.parentTaskId },
-        select: { projectId: true },
-      });
-
-      if (!parentTask) {
-        return NextResponse.json(
-          { error: "Parent task not found" },
-          { status: 404 }
-        );
-      }
-
-      if (parentTask.projectId !== projectId) {
-        return NextResponse.json(
-          { error: "Parent task does not belong to this project" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate sprint exists and belongs to project
-    if (body.sprintId) {
-      const sprint = await prisma.sprint.findUnique({
-        where: { id: body.sprintId },
-        select: { projectId: true },
-      });
-
-      if (!sprint) {
-        return NextResponse.json(
-          { error: "Sprint not found" },
-          { status: 404 }
-        );
-      }
-
-      if (sprint.projectId !== projectId) {
-        return NextResponse.json(
-          { error: "Sprint does not belong to this project" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate assignee exists and is a member of the project
-    if (body.assigneeId) {
-      const member = await prisma.projectMember.findUnique({
-        where: { id: body.assigneeId },
-        select: { projectId: true },
-      });
-
-      if (!member) {
-        return NextResponse.json(
-          { error: "Assignee not found" },
-          { status: 404 }
-        );
-      }
-
-      if (member.projectId !== projectId) {
-        return NextResponse.json(
-          { error: "Assignee is not a member of this project" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Create the task
-    const task = await prisma.task.create({
-      data: {
-        title,
-        description: body.description || null,
-        acceptanceCriteria: body.acceptanceCriteria || null,
-        estimatedHours: body.estimatedHours || null,
-        projectId,
-        sprintId: body.sprintId || null,
-        assigneeId: body.assigneeId || null,
-        parentTaskId: body.parentTaskId || null,
-      },
-      include: {
-        assignee: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-              },
-            },
-          },
-        },
-        sprint: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-          },
-        },
-        _count: {
-          select: {
-            subtasks: true,
-          },
-        },
-      },
+    const task = await createTaskWithRules({
+      projectId,
+      title,
+      description: body.description ?? null,
+      acceptanceCriteria: body.acceptanceCriteria ?? null,
+      estimatedHours: body.estimatedHours ?? null,
+      sprintId: body.sprintId ?? null,
+      assigneeId: body.assigneeId ?? null,
+      parentTaskId: body.parentTaskId ?? null,
+      priority: body.priority ?? null,
     });
 
     return NextResponse.json(task, { status: 201 });
   } catch (error: any) {
     console.error("Error creating task:", error);
     return NextResponse.json(
-      { error: "Failed to create task" },
-      { status: 500 }
+      { error: error?.message ?? "Failed to create task" },
+      { status: 400 }
     );
   }
 }

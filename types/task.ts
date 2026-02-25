@@ -1,11 +1,14 @@
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE";
 
+export type TaskPriority = "P0" | "P1" | "P2" | "P3" | "P4" | "P5";
+
 export type Task = {
   id: string;
   title: string;
   description: string | null;
   acceptanceCriteria: string | null;
   status: TaskStatus;
+  priority: TaskPriority;
   estimatedHours: number | null;
   projectId: string;
   sprintId: string | null;
@@ -44,6 +47,7 @@ export type CreateTaskInput = {
   sprintId?: string | null;
   assigneeId?: string | null;
   parentTaskId?: string | null;
+  priority?: TaskPriority;
 };
 
 export type UpdateTaskInput = Partial<CreateTaskInput> & {
