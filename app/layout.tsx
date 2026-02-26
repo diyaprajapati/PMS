@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Outfit, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -34,13 +35,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${outfit.variable} ${manrope.variable} ${jetbrainsMono.variable} antialiased`}
-      >
-        <ThemeProvider>
-          {children}
-          <Toaster />
-        </ThemeProvider>
+      <body className={`${outfit.variable} ${manrope.variable} ${jetbrainsMono.variable} antialiased`}>
+        <Suspense fallback={<div>Loading...</div>}>
+          <ThemeProvider>
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </Suspense>
       </body>
     </html>
   );
