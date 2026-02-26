@@ -4,23 +4,16 @@ import * as React from "react"
 import { Suspense } from "react"
 import {
   AudioWaveform,
-  BookOpen,
-  Bot,
   Command,
-  Frame,
   GalleryVerticalEnd,
-  Home,
   Inbox,
   Layers,
-  Map,
-  PieChart,
   Settings2,
-  SquareTerminal,
 } from "lucide-react"
 
 import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
-import { TeamSwitcher } from "./team-switcher"
+// import { TeamSwitcher } from "./team-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -30,6 +23,7 @@ import {
 } from "./ui/sidebar"
 import { NavProjects } from "./nav-projects"
 import { ThemeToggle } from "./theme-toggle"
+import { TeamSwitcher } from "./team-switcher"
 
 export type SidebarUser = {
   name: string
@@ -40,11 +34,11 @@ export type SidebarUser = {
 // This is sample data (teams, nav, projects). User comes from API.
 const data = {
   projects: [
-    {
-      name: "Dashboard",
-      url: "/dashboard",
-      icon: Home,
-    },
+    // {
+    //   name: "Dashboard",
+    //   url: "/dashboard",
+    //   icon: Home,
+    // },
     {
       name: "Sprints",
       url: "/sprints",
@@ -74,68 +68,68 @@ const data = {
     },
   ],
   navMain: [
-    {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
-      isActive: true,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Models",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
+    // {
+    //   title: "Playground",
+    //   url: "#",
+    //   icon: SquareTerminal,
+    //   isActive: true,
+    //   items: [
+    //     {
+    //       title: "History",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Starred",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Settings",
+    //       url: "#",
+    //     },
+    //   ],
+    // },
+    // {
+    //   title: "Models",
+    //   url: "#",
+    //   icon: Bot,
+    //   items: [
+    //     {
+    //       title: "Genesis",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Explorer",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Quantum",
+    //       url: "#",
+    //     },
+    //   ],
+    // },
+    // {
+    //   title: "Documentation",
+    //   url: "#",
+    //   icon: BookOpen,
+    //   items: [
+    //     {
+    //       title: "Introduction",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Get Started",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Tutorials",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Changelog",
+    //       url: "#",
+    //     },
+    //   ],
+    // },
     {
       title: "Settings",
       url: "#",
@@ -149,10 +143,10 @@ const data = {
           title: "Team Members",
           url: "/settings/team-members",
         },
-        {
-          title: "Monitoring",
-          url: "#",
-        },
+        // {
+        //   title: "Monitoring",
+        //   url: "#",
+        // },
       ],
     },
   ],
@@ -209,9 +203,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <Suspense fallback={null}>
-        <NavProjects projects={data.projects} />
+          <NavProjects projects={data.projects} />
         </Suspense>
-          <NavMain items={data.navMain} />
+        <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter>
         <div className="flex w-full items-center justify-between gap-2">

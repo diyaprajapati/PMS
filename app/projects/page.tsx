@@ -251,7 +251,7 @@ export default function ProjectsPage() {
                 <CardHeader className="flex flex-row items-start justify-between gap-3 p-0 pb-4">
                   <CardTitle className="text-xl leading-tight wrap-break-word font-semibold">
                     <Link
-                      href={`/dashboard?project=${project.id}`}
+                      href={`/sprints?project=${project.id}`}
                       className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer hover:text-primary transition-all duration-200"
                     >
                       {project.name}

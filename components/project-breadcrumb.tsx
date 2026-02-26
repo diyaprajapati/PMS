@@ -28,8 +28,8 @@ export function ProjectBreadcrumb({
   projectLoading,
   tabName,
 }: ProjectPageBreadcrumbProps) {
-  const dashboardUrl = projectId ? `/dashboard?project=${projectId}` : '/dashboard';
-
+  // const dashboardUrl = projectId ? `/sprints?project=${projectId}` : '/sprints';
+  const sprintsUrl = projectId ? `/sprints?project=${projectId}` : '/sprints';
   return (
     <BreadcrumbList>
       {projectId ? (
@@ -37,13 +37,13 @@ export function ProjectBreadcrumb({
           <BreadcrumbItem>
             {project ? (
               <BreadcrumbLink asChild>
-                <Link href={dashboardUrl}>{project.name}</Link>
+                <Link href={sprintsUrl}>{project.name}</Link>
               </BreadcrumbLink>
             ) : projectLoading ? (
               <BreadcrumbPage>Loading…</BreadcrumbPage>
             ) : (
               <BreadcrumbLink asChild>
-                <Link href={dashboardUrl}>Project</Link>
+                <Link href={sprintsUrl}>Project</Link>
               </BreadcrumbLink>
             )}
           </BreadcrumbItem>

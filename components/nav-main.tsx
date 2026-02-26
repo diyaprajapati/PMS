@@ -49,7 +49,7 @@ export function NavMain({
 
     // Routes that should always preserve the project context
     const shouldCarryProject =
-      url === '/dashboard' ||
+      // url === '/dashboard' ||
       url === '/sprints' ||
       url.startsWith('/settings/')
 

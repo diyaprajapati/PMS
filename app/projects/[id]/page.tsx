@@ -13,7 +13,7 @@ export default function ProjectRedirectPage() {
 
   useEffect(() => {
     if (projectId) {
-      router.replace(`/dashboard?project=${projectId}`);
+      router.replace(`/sprints?project=${projectId}`);
     } else {
       router.replace('/projects');
     }
