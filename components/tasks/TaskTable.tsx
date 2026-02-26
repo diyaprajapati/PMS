@@ -826,37 +826,53 @@ export function TaskTable({
     }
   }, [projectId, members, fetchTasks]);
 
-  const handleCreate = useCallback(async (title: string, parentTaskId?: string | null) => {
-    if (!projectId || !title.trim()) return;
-    try {
-      const body: Record<string, unknown> = { title: title.trim(), parentTaskId: parentTaskId ?? null };
-      // Assign to sprint context if creating a top-level task
-      if (!parentTaskId && sprintId && sprintId !== 'backlog') {
-        body.sprintId = sprintId;
-      }
+  const handleCreate = useCallback(
+    async (title: string, parentTaskId?: string | null) => {
+      if (!projectId || !title.trim()) return;
+      try {
+        const body: Record<string, unknown> = {
+          title: title.trim(),
+          parentTaskId: parentTaskId ?? null,
+        };
+        // Assign to sprint context if creating a top-level task
+        if (!parentTaskId && sprintId && sprintId !== 'backlog') {
+          body.sprintId = sprintId;
+        }
 
-      const res = await fetch(`/api/projects/${projectId}/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e?.error ?? 'Create failed');
+        const res = await fetch(`/api/projects/${projectId}/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const e = await res.json();
+          throw new Error(e?.error ?? 'Create failed');
+        }
+        const newTask: Task = await res.json();
+
+        // Update tasks locally and keep aggregates (onLoad) in sync,
+        // without forcing a full table remount/reload.
+        setTasks((prev) => {
+          let next: Task[];
+          if (parentTaskId) {
+            next = addSubtaskToList(prev, parentTaskId, newTask);
+          } else {
+            next = [newTask, ...prev];
+          }
+          onLoad?.(next);
+          return next;
+        });
+
+        if (parentTaskId) {
+          setExpandedIds((prev) => new Set([...prev, parentTaskId]));
+        }
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to create task');
       }
-      const newTask: Task = await res.json();
-      if (parentTaskId) {
-        setTasks((prev) => addSubtaskToList(prev, parentTaskId, newTask));
-        setExpandedIds((prev) => new Set([...prev, parentTaskId]));
-      } else {
-        setTasks((prev) => [newTask, ...prev]);
-      }
-      onRefresh?.();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create task');
-    }
-  }, [projectId, sprintId, onRefresh]);
+    },
+    [projectId, sprintId, onLoad],
+  );
 
   const handleDelete = useCallback(async (task: Task) => {
     if (!projectId) return;
