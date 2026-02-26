@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { BookPlus, MoreVertical, Pencil, Trash2, Search, X } from 'lucide-react';
+import { BookPlus, MoreVertical, Pencil, Trash2, Search, User } from 'lucide-react';
 import Logo from '@/components/logo';
+import { Avatar, AvatarFallback, AvatarImage, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -168,7 +169,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="px-6 py-4 border-b border-border/50">
+      <div className="border-b border-border/50">
         <Logo />
       </div>
       <div className="flex flex-col gap-8 px-6 py-8 md:px-12 md:py-12 lg:px-16 lg:py-16 max-w-[1600px] mx-auto w-full">
@@ -244,7 +245,7 @@ export default function ProjectsPage() {
                 Showing {filteredProjects.length} of {projects.length} project{projects.length === 1 ? '' : 's'}
               </p>
             )}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
             {filteredProjects.map((project) => (
               <Card key={project.id} className="group p-6 flex flex-col transition-all duration-200 hover:shadow-md hover:border-primary/20">
                 <CardHeader className="flex flex-row items-start justify-between gap-3 p-0 pb-4">
@@ -287,10 +288,39 @@ export default function ProjectsPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </CardHeader>
-                <CardContent className="p-0 flex-1">
-                  <p className="text-sm text-muted-foreground wrap-break-word leading-relaxed">
-                    {project.description || 'No description provided.'}
-                  </p>
+                <CardContent className="p-0 flex-1 flex items-center justify-between gap-3">
+                  {project.myRole && (
+                    <span className="inline-flex w-fit items-center gap-2 rounded-md border border-primary/60 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary capitalize">
+                      <User className="size-4" />
+                      {project.myRole.replace(/_/g, ' ').toLowerCase()}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {project.members && project.members.length > 0 ? (
+                      <>
+                        <AvatarGroup>
+                          {project.members.slice(0, 4).map((m) => (
+                            <Avatar key={m.id} size="sm">
+                              {m.user?.image && <AvatarImage src={m.user.image} />}
+                              <AvatarFallback className="text-[10px]">
+                                {m.user?.name ? m.user.name.slice(0, 2).toUpperCase() : '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                          ))}
+                          {(project._count?.members ?? project.members.length) > 4 && (
+                            <AvatarGroupCount className="text-[10px]">
+                              +{(project._count?.members ?? project.members.length) - 4}
+                            </AvatarGroupCount>
+                          )}
+                        </AvatarGroup>
+                        <span className="text-sm text-muted-foreground tabular-nums">
+                          {project._count?.members ?? project.members.length} member{(project._count?.members ?? project.members.length) === 1 ? '' : 's'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">0 members</span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}

@@ -143,7 +143,7 @@ function StatusPill({ status, onUpdate }: { status: TaskStatus; onUpdate: (s: Ta
             key={o.value}
             onClick={() => { onUpdate(o.value); setOpen(false); }}
             className={cn(
-              'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left',
+              'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left cursor-pointer',
               status === o.value && 'bg-accent'
             )}
           >
@@ -170,7 +170,8 @@ function AssigneePicker({
   onUpdate: (id: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const name = assignee?.user.name || assignee?.user.email;
+  const user = assignee?.user;
+  const name = user?.name || user?.email;
 
   // All members now have real ProjectMember IDs (owner is upserted on fetch)
   const assignableMembers = members;
@@ -181,13 +182,13 @@ function AssigneePicker({
         <button
           onClick={(e) => e.stopPropagation()}
           title={name ?? 'Assign member'}
-          className="rounded-full hover:ring-2 hover:ring-primary/20 transition-all"
+          className="rounded-full hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
         >
-          {assignee ? (
+          {user ? (
             <Avatar size="sm">
-              {assignee.user.image && <AvatarImage src={assignee.user.image} />}
+              {user.image && <AvatarImage src={user.image} />}
               <AvatarFallback className="text-[10px]">
-                {initials(assignee.user.name, assignee.user.email)}
+                {initials(user.name, user.email)}
               </AvatarFallback>
             </Avatar>
           ) : (
@@ -201,7 +202,7 @@ function AssigneePicker({
         <button
           onClick={() => { onUpdate(null); setOpen(false); }}
           className={cn(
-            'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left',
+            'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left cursor-pointer',
             !assignee && 'bg-accent'
           )}
         >
@@ -215,7 +216,7 @@ function AssigneePicker({
             key={m.id}
             onClick={() => { onUpdate(m.id); setOpen(false); }}
             className={cn(
-              'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left',
+              'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left cursor-pointer',
               assignee?.id === m.id && 'bg-accent'
             )}
           >
@@ -250,7 +251,7 @@ function PriorityPill({
       <PopoverTrigger asChild>
         <button
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border border-border/60 text-muted-foreground/80 bg-background/60 hover:bg-accent/40 transition-colors"
+          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border border-border/60 text-muted-foreground/80 bg-background/60 hover:bg-accent/40 transition-colors cursor-pointer"
         >
           <span className="font-semibold">{opt.code}</span>
           <span className="hidden sm:inline">{opt.label}</span>
@@ -262,7 +263,7 @@ function PriorityPill({
             key={o.value}
             onClick={() => { onUpdate(o.value); setOpen(false); }}
             className={cn(
-              'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left',
+              'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left cursor-pointer',
               priority === o.value && 'bg-accent'
             )}
           >
@@ -312,7 +313,7 @@ function EstimateField({ value, onSave }: { value: number | null; onSave: (v: nu
         type="number"
         min={0}
         step={0.5}
-        className="w-12 text-right text-xs bg-transparent outline-none border-b border-primary text-foreground"
+        className="w-12 text-right text-xs bg-transparent outline-none border-b border-primary text-foreground cursor-pointer"
         placeholder="0"
       />
     );
@@ -325,7 +326,7 @@ function EstimateField({ value, onSave }: { value: number | null; onSave: (v: nu
         setDraft(value?.toString() ?? '');
         setEditing(true);
       }}
-      className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors tabular-nums"
+      className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors tabular-nums cursor-pointer"
     >
       {value != null ? `${value}h` : <span className="opacity-25">—</span>}
     </button>
@@ -528,6 +529,8 @@ function TaskRow({
           <span
             className={cn(
               'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border',
+              derivedStatus === 'TODO'
+                ? 'border-slate-500/40 bg-slate-500/10 dark:bg-slate-500/10 text-slate-800 dark:text-slate-200' :
               derivedStatus === 'DONE'
                 ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                 : derivedStatus === 'IN_PROGRESS'
@@ -643,7 +646,7 @@ function TaskRow({
           <DropdownMenuTrigger asChild>
             <button
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground/60 hover:text-foreground hover:bg-accent/40 transition-colors"
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground/60 hover:text-foreground hover:bg-accent/40 transition-colors cursor-pointer"
             >
               <MoreHorizontal className="size-4" />
             </button>
@@ -654,6 +657,7 @@ function TaskRow({
                 e.stopPropagation();
                 onEdit();
               }}
+              className="cursor-pointer"
             >
               <Pencil className="size-4 mr-2" />
               Edit task
@@ -664,6 +668,7 @@ function TaskRow({
                 e.stopPropagation();
                 onDelete();
               }}
+              className="cursor-pointer"
             >
               <Trash2 className="size-4 mr-2" />
               Delete

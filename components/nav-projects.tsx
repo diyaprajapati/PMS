@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import {
   Folder,
   Forward,
@@ -39,6 +39,7 @@ export function NavProjects({
   const { isMobile } = useSidebar()
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project')
+  const pathname = usePathname()
 
   // Helper to preserve project parameter in URLs
   const getUrlWithProject = (url: string) => {
@@ -69,9 +70,11 @@ export function NavProjects({
       <SidebarMenu>
         {projects.map((item) => {
           const href = getUrlWithProject(item.url)
+          const isActive =
+            href.startsWith('/') && pathname === item.url
           return (
             <SidebarMenuItem key={item.name}>
-              <SidebarMenuButton asChild>
+              <SidebarMenuButton asChild isActive={isActive} className="hover:border hover:border-primary hover:text-sidebar-accent-foreground">
                 {href.startsWith('/') ? (
                   <Link href={href}>
                     <item.icon />

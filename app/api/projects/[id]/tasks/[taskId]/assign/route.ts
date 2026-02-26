@@ -101,7 +101,18 @@ export async function PATCH(req: Request, context: RouteContext) {
         assigneeId: body.assigneeId,
       },
       include: {
-        assignee: true,
+        assignee: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
+          },
+        },
         sprint: {
           select: {
             id: true,

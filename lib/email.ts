@@ -110,7 +110,9 @@ type TaskAssignedEmailParams = {
   projectId: string;
 };
 
-export async function sendTaskAssignedEmail(params: TaskAssignedEmailParams): Promise<void> {
+export async function sendTaskAssignedEmail(
+  params: TaskAssignedEmailParams
+): Promise<void> {
   const {
     toEmail,
     assigneeName,
@@ -123,7 +125,7 @@ export async function sendTaskAssignedEmail(params: TaskAssignedEmailParams): Pr
 
   const transporter = createTransporter();
 
-  const appUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
   const projectUrl = `${appUrl}/projects?project=${projectId}`;
 
   const displayAssignee = assigneeName || toEmail;
@@ -141,42 +143,56 @@ export async function sendTaskAssignedEmail(params: TaskAssignedEmailParams): Pr
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Task Assigned</title>
         </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #e5e7eb; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #020617;">
-          <div style="background-color: #020617; border: 1px solid #1f2937; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-            <h1 style="color: #38bdf8; margin-top: 0; font-size: 20px;">New task assigned to you</h1>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h1 style="color: #2563eb; margin-top: 0;">New Task Assigned</h1>
+
             <p>Hello ${displayAssignee},</p>
+
             <p>
-              <strong>${displayAssigner}</strong> has assigned you a task in the project
+              <strong>${displayAssigner}</strong> has assigned you a new task in the project 
               <strong>"${projectName}"</strong>.
             </p>
+
             <p>
               <strong>Task:</strong> ${taskTitle}
             </p>
-            <div style="margin: 24px 0; text-align: center;">
-              <a href="${projectUrl}"
-                 style="background-color: #38bdf8; color: white; padding: 10px 20px; text-decoration: none; border-radius: 999px; display: inline-block; font-weight: 600; font-size: 14px;">
-                View project and tasks
+
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${projectUrl}" 
+                 style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+                View Project
               </a>
             </div>
-            <p style="color: #9ca3af; font-size: 13px; margin-top: 24px;">
-              If you weren't expecting this, you can ignore this email.
+
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              If you have any questions, please contact ${displayAssigner} at ${assignerEmail}.
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+            <p style="color: #999; font-size: 12px;">
+              This is an automated message. Please do not reply to this email.
             </p>
           </div>
         </body>
       </html>
     `,
     text: `
-New task assigned
+New Task Assigned
 
 Hello ${displayAssignee},
 
-${displayAssigner} has assigned you a task in the project "${projectName}".
+${displayAssigner} has assigned you a new task in the project "${projectName}".
 
 Task: ${taskTitle}
 
-View project and tasks: ${projectUrl}
+View Project: ${projectUrl}
 
-If you weren't expecting this, you can ignore this email.
+If you have any questions, please contact ${displayAssigner} at ${assignerEmail}.
+
+---
+This is an automated message. Please do not reply to this email.
     `.trim(),
   };
 

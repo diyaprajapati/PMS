@@ -1,94 +1,16 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { getSession } from 'next-auth/react';
 import { toast } from 'sonner';
-import { ChevronDown } from 'lucide-react';
 
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { TaskTable } from '@/components/tasks/TaskTable';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
-import { cn } from '@/lib/utils';
-import type { Task } from '@/types/task';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type Sprint = {
-  id: string;
-  title: string;
-  status: 'NOT_STARTED' | 'ACTIVE' | 'COMPLETED';
-  startDate: string | null;
-  endDate: string | null;
-};
-
-// ---------------------------------------------------------------------------
-// Sprint selector
-// ---------------------------------------------------------------------------
-
-function SprintSelector({
-  sprints,
-  selected,
-  onSelect,
-}: {
-  sprints: Sprint[];
-  selected: Sprint | null;
-  onSelect: (s: Sprint) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  const statusColor: Record<Sprint['status'], string> = {
-    NOT_STARTED: 'bg-slate-400',
-    ACTIVE: 'bg-emerald-500',
-    COMPLETED: 'bg-muted-foreground/40',
-  };
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/60 bg-background hover:bg-accent/40 transition-colors text-sm font-medium">
-          {selected ? (
-            <>
-              <span className={cn('size-1.5 rounded-full shrink-0', statusColor[selected.status])} />
-              <span>{selected.title}</span>
-            </>
-          ) : (
-            <span className="text-muted-foreground">Select sprint</span>
-          )}
-          <ChevronDown className="size-3.5 text-muted-foreground ml-1" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="p-1 w-56">
-        {sprints.length === 0 ? (
-          <p className="px-2 py-2 text-xs text-muted-foreground">No sprints found</p>
-        ) : (
-          sprints.map((sprint) => (
-            <button
-              key={sprint.id}
-              onClick={() => { onSelect(sprint); setOpen(false); }}
-              className={cn(
-                'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm hover:bg-accent transition-colors text-left',
-                selected?.id === sprint.id && 'bg-accent'
-              )}
-            >
-              <span className={cn('size-1.5 rounded-full shrink-0', statusColor[sprint.status])} />
-              <span className="truncate">{sprint.title}</span>
-              {sprint.status === 'ACTIVE' && (
-                <span className="ml-auto text-[10px] text-emerald-600 dark:text-emerald-400 font-medium shrink-0">Active</span>
-              )}
-            </button>
-          ))
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
+import { ProjectBreadcrumb } from '@/components/project-breadcrumb';
 
 // ---------------------------------------------------------------------------
 // Dashboard inner content
@@ -98,12 +20,6 @@ function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { projectId, project, projectLoading } = useProjectFromSearchParams();
-
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
-  const [sprintsLoading, setSprintsLoading] = useState(false);
-  const [totalHours, setTotalHours] = useState<number>(0);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // -------------------------------------------------------------------------
   // Auth check (keep existing logic)
@@ -225,49 +141,6 @@ function DashboardContent() {
   }, [searchParams]);
 
   // -------------------------------------------------------------------------
-  // Fetch sprints when project changes
-  // -------------------------------------------------------------------------
-
-  const fetchSprints = useCallback(async () => {
-    if (!projectId) return;
-    setSprintsLoading(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/sprints`, { credentials: 'include' });
-      if (!res.ok) throw new Error();
-      const data: Sprint[] = await res.json();
-      setSprints(data);
-      // Auto-select active sprint, else first sprint
-      const active = data.find((s) => s.status === 'ACTIVE');
-      setSelectedSprint((prev) => prev ?? active ?? data[0] ?? null);
-    } catch {
-      toast.error('Failed to load sprints');
-    } finally {
-      setSprintsLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    if (projectId) {
-      setSprints([]);
-      setSelectedSprint(null);
-      fetchSprints();
-    }
-  }, [projectId, fetchSprints]);
-
-  // -------------------------------------------------------------------------
-  // Total hours from tasks
-  // -------------------------------------------------------------------------
-
-  const handleTasksLoaded = useCallback((tasks: Task[]) => {
-    const sumHours = (list: Task[]): number =>
-      list.reduce((acc, t) => {
-        const sub = t.subtasks ? sumHours(t.subtasks) : 0;
-        return acc + (t.estimatedHours ?? 0) + sub;
-      }, 0);
-    setTotalHours(sumHours(tasks));
-  }, []);
-
-  // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
@@ -275,70 +148,28 @@ function DashboardContent() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        {/* Top bar */}
-        <header className="flex h-16 shrink-0 items-center gap-3 px-6 border-b border-border/50">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-5" />
-
-          {projectLoading ? (
-            <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-          ) : project ? (
-            <span className="font-semibold text-base truncate">{project.name}</span>
-          ) : (
-            <span className="text-muted-foreground text-sm">Dashboard</span>
-          )}
-
-          {project && !sprintsLoading && (
-            <>
-              <Separator orientation="vertical" className="h-5" />
-              <SprintSelector
-                sprints={sprints}
-                selected={selectedSprint}
-                onSelect={setSelectedSprint}
+        {/* Header with breadcrumb */}
+        <header className="flex h-20 shrink-0 items-center gap-2 border-b border-border/50 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16">
+          <div className="flex items-center gap-3 px-6">
+            <SidebarTrigger className="-ml-1 transition-all duration-200" />
+            <Separator
+              orientation="vertical"
+              className="mr-2 data-[orientation=vertical]:h-5"
+            />
+            <Breadcrumb>
+              <ProjectBreadcrumb
+                projectId={projectId}
+                project={project}
+                projectLoading={projectLoading}
+                tabName="Dashboard"
               />
-              {totalHours > 0 && (
-                <span className="ml-2 text-xs text-muted-foreground/70 tabular-nums">
-                  {totalHours}h total
-                </span>
-              )}
-            </>
-          )}
+            </Breadcrumb>
+          </div>
         </header>
 
-        {/* Body */}
+        {/* Blank body */}
         <div className="flex flex-1 flex-col p-6 md:p-8 overflow-auto">
-          {!projectId && !projectLoading && (
-            <div className="flex items-center justify-center min-h-[400px]">
-              <p className="text-muted-foreground text-base text-center max-w-sm">
-                Select a project from{' '}
-                <Link href="/projects" className="text-primary underline hover:text-primary/80 transition-colors font-medium">
-                  Projects
-                </Link>{' '}
-                to get started.
-              </p>
-            </div>
-          )}
-
-          {projectId && !selectedSprint && !sprintsLoading && sprints.length === 0 && (
-            <div className="flex items-center justify-center min-h-[400px]">
-              <p className="text-muted-foreground text-sm text-center">
-                No sprints yet.{' '}
-                <Link href={`/sprints?project=${projectId}`} className="text-primary underline hover:text-primary/80 transition-colors">
-                  Create a sprint
-                </Link>{' '}
-                to start planning tasks.
-              </p>
-            </div>
-          )}
-
-          {projectId && selectedSprint && (
-            <TaskTable
-              key={`${selectedSprint.id}-${refreshKey}`}
-              sprintId={selectedSprint.id}
-              onRefresh={() => setRefreshKey((k) => k + 1)}
-              onLoad={handleTasksLoaded}
-            />
-          )}
+          hey
         </div>
       </SidebarInset>
     </SidebarProvider>

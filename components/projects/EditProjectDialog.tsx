@@ -39,6 +39,11 @@ export type Project = {
   description: string | null;
   createdAt?: string;
   updatedAt?: string;
+  /** Current user's role in this project (OWNER, ADMIN, DEVELOPER, CLIENT) */
+  myRole?: string;
+  /** Sample of members for avatar group (up to 5) */
+  members?: Array<{ id: string; user: { name: string | null; image: string | null } }>;
+  _count?: { members: number };
 };
 
 type EditProjectDialogProps = {

@@ -20,7 +20,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // Get projects owned by the user
+    // Get projects owned by the user (with member count and sample for avatars)
     const ownedProjects = await prisma.project.findMany({
       where: { userId: user.id },
       orderBy: { updatedAt: "desc" },
@@ -30,6 +30,14 @@ export async function GET(req: Request) {
         description: true,
         createdAt: true,
         updatedAt: true,
+        members: {
+          take: 5,
+          select: {
+            id: true,
+            user: { select: { name: true, image: true } },
+          },
+        },
+        _count: { select: { members: true } },
       },
     });
 
@@ -46,6 +54,14 @@ export async function GET(req: Request) {
               description: true,
               createdAt: true,
               updatedAt: true,
+              members: {
+                take: 5,
+                select: {
+                  id: true,
+                  user: { select: { name: true, image: true } },
+                },
+              },
+              _count: { select: { members: true } },
             },
           },
         },
@@ -61,18 +77,28 @@ export async function GET(req: Request) {
       }
     }
 
-    // Combine and deduplicate (in case user is both owner and member, which shouldn't happen)
-    const allProjects = [
-      ...ownedProjects,
-      ...memberProjects.map((mp: { project: any; }) => mp.project),
-    ];
+    // Build project id -> { project, myRole }; owner wins over member
+    type ProjectWithMeta = {
+      id: string;
+      name: string;
+      description: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      myRole: string;
+      members: Array<{ id: string; user: { name: string | null; image: string | null } }>;
+      _count: { members: number };
+    };
+    const projectMap = new Map<string, ProjectWithMeta>();
+    for (const p of ownedProjects) {
+      projectMap.set(p.id, { ...p, myRole: "OWNER" });
+    }
+    for (const mp of memberProjects as Array<{ project: Omit<ProjectWithMeta, "myRole">; role: string }>) {
+      if (!projectMap.has(mp.project.id)) {
+        projectMap.set(mp.project.id, { ...mp.project, myRole: mp.role });
+      }
+    }
 
-    // Remove duplicates by id
-    const uniqueProjects = Array.from(
-      new Map(allProjects.map((p) => [p.id, p])).values()
-    );
-
-    // Sort by updatedAt descending
+    const uniqueProjects = Array.from(projectMap.values());
     uniqueProjects.sort(
       (a, b) =>
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()

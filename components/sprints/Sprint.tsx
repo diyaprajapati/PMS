@@ -7,7 +7,14 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { AddSprintDialog } from './AddSprintDialog';
 import { EditSprintDialog } from './EditSprintDialog';
 import { DeleteSprintDialog, type Sprint as SprintType } from './DeleteSprintDialog';
@@ -24,8 +31,6 @@ type SprintSelectorProps = {
 };
 
 function SprintSelector({ sprints, selected, onSelect }: SprintSelectorProps) {
-  const [open, setOpen] = useState(false);
-
   const statusColor: Record<SprintType['status'], string> = {
     NOT_STARTED: 'bg-slate-400',
     ACTIVE: 'bg-emerald-500',
@@ -33,48 +38,43 @@ function SprintSelector({ sprints, selected, onSelect }: SprintSelectorProps) {
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
         <Button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/60 bg-background hover:bg-accent/40 transition-colors text-sm font-medium">
           {selected ? (
             <>
               <span className={cn('size-1.5 rounded-full shrink-0', statusColor[selected.status])} />
-              <span>{selected.title}</span>
+              <span className='text-muted-foreground'>{selected.title}</span>
             </>
           ) : (
             <span className="text-muted-foreground">Select sprint</span>
           )}
           <ChevronDown className="size-3.5 text-muted-foreground ml-1" />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="p-1 w-56">
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
         {sprints.length === 0 ? (
           <p className="px-2 py-2 text-xs text-muted-foreground">No sprints found</p>
         ) : (
-          sprints.map((sprint) => (
-            <button
-              key={sprint.id}
-              onClick={() => {
-                onSelect(sprint);
-                setOpen(false);
-              }}
-              className={cn(
-                'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm hover:bg-accent transition-colors text-left',
-                selected?.id === sprint.id && 'bg-accent',
-              )}
-            >
-              <span className={cn('size-1.5 rounded-full shrink-0', statusColor[sprint.status])} />
-              <span className="truncate">{sprint.title}</span>
-              {sprint.status === 'ACTIVE' && (
-                <span className="ml-auto text-[10px] text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
-                  Active
-                </span>
-              )}
-            </button>
-          ))
+          <DropdownMenuRadioGroup value={selected?.id ?? ''} onValueChange={(id) => {
+            const sprint = sprints.find((s) => s.id === id);
+            if (sprint) onSelect(sprint);
+          }}>
+            {sprints.map((sprint) => (
+              <DropdownMenuItem key={sprint.id} onClick={() => onSelect(sprint)} className="flex items-center gap-2">
+                <span className={cn('size-1.5 rounded-full shrink-0', statusColor[sprint.status])} />
+                <span className="truncate flex-1">{sprint.title}</span>
+                {sprint.status === 'ACTIVE' && (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                    Active
+                  </span>
+                )}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuRadioGroup>
         )}
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
