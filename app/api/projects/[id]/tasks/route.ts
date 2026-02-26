@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
-import { TaskStatus } from "@/lib/generated/prisma/client";
-import { TaskPriority } from "@/lib/generated/prisma/enums";
+import { TaskStatus } from "@prisma/client";
+import { TaskPriority } from "@prisma/client";
 import { createTaskWithRules } from "@/lib/task-service";
 
 type RouteContext = { params: Promise<{ id: string }> };

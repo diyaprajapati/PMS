@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { parseDate } from "@/lib/utils";
-import { SprintStatus } from "@/lib/generated/prisma/client";
+import { SprintStatus } from "@prisma/client";
 
 type RouteContext = { params: Promise<{ id: string; sprintId: string }> };
 

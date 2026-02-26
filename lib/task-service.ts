@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { TaskStatus } from "@/lib/generated/prisma/client";
-import { TaskPriority } from "@/lib/generated/prisma/enums";
+import { TaskStatus } from "@prisma/client";
+import { TaskPriority } from "@prisma/client";
 
 type CreateTaskInput = {
   projectId: string;
