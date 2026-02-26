@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
+import { Card } from '../ui/card'
 import { Separator } from '../ui/separator'
 import { Calendar, ChartColumn, LayoutList, SquareKanban, CheckCircle2 } from 'lucide-react'
 import { Button } from '../ui/button'
