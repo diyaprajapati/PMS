@@ -26,11 +26,13 @@ export async function GET(req: Request, context: RouteContext) {
       projectId,
     };
 
-    // Filter by sprint
-    if (sprintId === "backlog") {
-      where.sprintId = null;
-    } else if (sprintId) {
+    // Filter by sprint / backlog
+    // If sprintId is provided → tasks in that sprint.
+    // If sprintId is omitted → backlog (no sprint).
+    if (sprintId) {
       where.sprintId = sprintId;
+    } else {
+      where.sprintId = null;
     }
 
     // Filter by status

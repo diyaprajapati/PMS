@@ -3,10 +3,12 @@
 import { Suspense, useCallback, useState } from 'react';
 import Link from 'next/link';
 import { AppSidebar } from '@/components/app-sidebar';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { TaskTable } from '@/components/tasks/TaskTable';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
+import { ProjectBreadcrumb } from '@/components/project-breadcrumb';
 import type { Task } from '@/types/task';
 
 function BacklogContent() {
@@ -25,30 +27,28 @@ function BacklogContent() {
 
   return (
     <>
-      {/* Top bar */}
-      <header className="flex h-16 shrink-0 items-center gap-3 px-6 border-b border-border/50">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="h-5" />
-
-        {projectLoading ? (
-          <div className="h-5 w-32 rounded bg-muted animate-pulse" />
-        ) : project ? (
-          <span className="font-semibold text-base truncate">{project.name}</span>
-        ) : (
-          <span className="text-muted-foreground text-sm">Backlog</span>
-        )}
-
-        {project && (
-          <>
-            <Separator orientation="vertical" className="h-5" />
-            <span className="text-sm font-medium text-muted-foreground">Backlog</span>
-            {totalHours > 0 && (
-              <span className="ml-2 text-xs text-muted-foreground/70 tabular-nums">
-                {totalHours}h total
-              </span>
-            )}
-          </>
-        )}
+      {/* Header with breadcrumb (same style as Sprints) */}
+      <header className="flex h-20 shrink-0 items-center gap-2 border-b border-border/50 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16">
+        <div className="flex items-center gap-3 px-6">
+          <SidebarTrigger className="-ml-1 transition-all duration-200" />
+          <Separator
+            orientation="vertical"
+            className="mr-2 data-[orientation=vertical]:h-5"
+          />
+          <Breadcrumb>
+            <ProjectBreadcrumb
+              projectId={projectId}
+              project={project}
+              projectLoading={projectLoading}
+              tabName="Backlog"
+            />
+          </Breadcrumb>
+          {project && totalHours > 0 && (
+            <span className="ml-4 text-xs text-muted-foreground/70 tabular-nums">
+              {totalHours}h backlog
+            </span>
+          )}
+        </div>
       </header>
 
       {/* Body */}
@@ -84,10 +84,10 @@ export default function Page() {
       <AppSidebar />
       <SidebarInset>
         <Suspense fallback={
-          <header className="flex h-16 shrink-0 items-center gap-3 px-6 border-b border-border/50">
+          <header className="flex h-20 shrink-0 items-center gap-3 px-6 border-b border-border/50">
             <div className="h-5 w-5 rounded bg-muted animate-pulse" />
             <Separator orientation="vertical" className="h-5" />
-            <span className="text-muted-foreground text-sm">Backlog</span>
+            <span className="text-muted-foreground text-base font-medium">Backlog</span>
           </header>
         }>
           <BacklogContent />

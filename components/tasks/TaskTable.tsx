@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2, UserRound } from 'lucide-react';
+import { ArrowRightLeft, ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2, UserRound } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DeleteTaskDialog } from './DeleteTaskDialog';
@@ -460,6 +461,8 @@ function TaskRow({
   onUpdate,
   onDelete,
   onEdit,
+  onMoveToBacklog,
+  onMoveToSprint,
 }: {
   task: Task;
   depth: number;
@@ -469,6 +472,8 @@ function TaskRow({
   onUpdate: (data: Record<string, unknown>) => void;
   onDelete: () => void;
   onEdit: () => void;
+  onMoveToBacklog?: () => void;
+  onMoveToSprint?: () => void;
 }) {
   const isMain = depth === 0;
   const subtasks = task.subtasks ?? [];
@@ -640,7 +645,7 @@ function TaskRow({
         )}
       </div>
 
-      {/* Actions – three-dot menu (edit + delete) */}
+      {/* Actions – three-dot menu (move / edit / delete) */}
       <div className="w-16 shrink-0 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -651,7 +656,32 @@ function TaskRow({
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[140px]">
+          <DropdownMenuContent align="end" className="min-w-[160px]">
+            {onMoveToBacklog && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMoveToBacklog();
+                }}
+                className="cursor-pointer"
+              >
+                <ArrowRightLeft className="size-4 mr-2" />
+                Move to backlog
+              </DropdownMenuItem>
+            )}
+            {onMoveToSprint && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMoveToSprint();
+                }}
+                className="cursor-pointer"
+              >
+                <ArrowRightLeft className="size-4 mr-2" />
+                Move to sprint
+              </DropdownMenuItem>
+            )}
+            {/* {(onMoveToBacklog || onMoveToSprint) && <DropdownMenuSeparator />} */}
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
@@ -712,8 +742,9 @@ export function TaskTable({
     try {
       setLoading(true);
       const params = new URLSearchParams({ includeSubtasks: 'true', parentTaskId: 'null' });
-      if (sprintId === 'backlog') params.set('sprintId', 'backlog');
-      else if (sprintId) params.set('sprintId', sprintId);
+      if (sprintId && sprintId !== 'backlog') {
+        params.set('sprintId', sprintId);
+      }
 
       const res = await fetch(`/api/projects/${projectId}/tasks?${params}`, { credentials: 'include' });
       if (!res.ok) throw new Error();
@@ -850,6 +881,77 @@ export function TaskTable({
     }
   }, [projectId, fetchTasks, onRefresh]);
 
+  const handleMoveToBacklog = useCallback(
+    async (task: Task) => {
+      if (!projectId) return;
+      try {
+        const res = await fetch(
+          `/api/projects/${projectId}/tasks/${task.id}/move`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ sprintId: null }),
+          },
+        );
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d?.error ?? 'Failed to move task to backlog');
+        }
+        toast.success('Task moved to backlog');
+        fetchTasks();
+        onRefresh?.();
+      } catch (err: unknown) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to move task to backlog',
+        );
+      }
+    },
+    [projectId, fetchTasks, onRefresh],
+  );
+
+  const handleMoveToSprint = useCallback(
+    async (task: Task) => {
+      if (!projectId) return;
+      try {
+        const res = await fetch(`/api/projects/${projectId}/sprints`, {
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          throw new Error('Failed to load sprints');
+        }
+        const sprints: { id: string; status: string }[] = await res.json();
+        if (!sprints.length) {
+          throw new Error('No sprints available to move task into');
+        }
+        const active =
+          sprints.find((s) => s.status === 'ACTIVE') ?? sprints[0];
+
+        const moveRes = await fetch(
+          `/api/projects/${projectId}/tasks/${task.id}/move`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ sprintId: active.id }),
+          },
+        );
+        if (!moveRes.ok) {
+          const d = await moveRes.json().catch(() => ({}));
+          throw new Error(d?.error ?? 'Failed to move task to sprint');
+        }
+        toast.success('Task moved to sprint');
+        fetchTasks();
+        onRefresh?.();
+      } catch (err: unknown) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to move task to sprint',
+        );
+      }
+    },
+    [projectId, fetchTasks, onRefresh],
+  );
+
   const toggleExpand = (taskId: string) =>
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -864,6 +966,9 @@ export function TaskTable({
   const renderRows = (taskList: Task[], depth: number): React.ReactNode[] =>
     taskList.flatMap((task) => {
       const isExpanded = expandedIds.has(task.id);
+      const isBacklogView = sprintId === 'backlog';
+      const isSprintView = !!sprintId && sprintId !== 'backlog';
+
       const rows: React.ReactNode[] = [
         <TaskRow
           key={task.id}
@@ -875,6 +980,12 @@ export function TaskTable({
           onUpdate={(data) => handleUpdate(task.id, data)}
           onDelete={() => setDeleteTarget(task)}
           onEdit={() => setEditTarget(task)}
+          onMoveToBacklog={
+            isSprintView && depth === 0 ? () => handleMoveToBacklog(task) : undefined
+          }
+          onMoveToSprint={
+            isBacklogView && depth === 0 ? () => handleMoveToSprint(task) : undefined
+          }
         />,
       ];
 
