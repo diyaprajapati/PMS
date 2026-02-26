@@ -69,6 +69,20 @@ function addSubtaskToList(tasks: Task[], parentId: string, sub: Task): Task[] {
   );
 }
 
+function removeTaskFromList(tasks: Task[], id: string): Task[] {
+  return tasks
+    .filter((t) => t.id !== id)
+    .map((t) =>
+      t.subtasks
+        ? {
+            ...t,
+            subtasks: removeTaskFromList(t.subtasks, id),
+            _count: { subtasks: t.subtasks.filter((s) => s.id !== id).length },
+          }
+        : t
+    );
+}
+
 /** Derives parent task status from its subtasks */
 function deriveStatus(task: Task): TaskStatus {
   const subs = task.subtasks ?? [];
@@ -888,14 +902,18 @@ export function TaskTable({
       }
       toast.success('Task deleted');
       setDeleteTarget(null);
-      fetchTasks();
+      setTasks((prev) => {
+        const updated = removeTaskFromList(prev, task.id);
+        onLoad?.(updated);
+        return updated;
+      });
       onRefresh?.();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete task');
     } finally {
       setDeleting(false);
     }
-  }, [projectId, fetchTasks, onRefresh]);
+  }, [projectId, onLoad, onRefresh]);
 
   const handleMoveToBacklog = useCallback(
     async (task: Task) => {

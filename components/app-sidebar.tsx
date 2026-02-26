@@ -3,9 +3,6 @@
 import * as React from "react"
 import { Suspense } from "react"
 import {
-  AudioWaveform,
-  Command,
-  GalleryVerticalEnd,
   Inbox,
   Layers,
   Settings2,
@@ -13,7 +10,6 @@ import {
 
 import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
-// import { TeamSwitcher } from "./team-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -23,7 +19,6 @@ import {
 } from "./ui/sidebar"
 import { NavProjects } from "./nav-projects"
 import { ThemeToggle } from "./theme-toggle"
-import { TeamSwitcher } from "./team-switcher"
 
 export type SidebarUser = {
   name: string
@@ -31,40 +26,18 @@ export type SidebarUser = {
   avatar: string
 }
 
-// This is sample data (teams, nav, projects). User comes from API.
+// This is sample data (nav, projects). User comes from API.
 const data = {
   projects: [
-    // {
-    //   name: "Dashboard",
-    //   url: "/dashboard",
-    //   icon: Home,
-    // },
     {
-      name: "Sprints",
-      url: "/sprints",
+      name: "Dashboard",
+      url: "/dashboard",
       icon: Layers,
     },
     {
       name: "Backlog",
       url: "/backlog",
       icon: Inbox,
-    },
-  ],
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
     },
   ],
   navMain: [
@@ -199,7 +172,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <div className="flex h-12 items-center px-3">
+          <h2 className="text-lg font-semibold tracking-tight">PMS</h2>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <Suspense fallback={null}>

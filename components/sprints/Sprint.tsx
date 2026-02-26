@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AddSprintDialog } from './AddSprintDialog';
@@ -185,73 +184,69 @@ export default function Sprint() {
 
   return (
     <div className="flex flex-col gap-6 h-full w-full overflow-y-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Sprints</h2>
-          <p className="text-sm text-muted-foreground">
-            Plan work into focused iterations and track tasks per sprint.
-          </p>
-        </div>
-        <AddSprintDialog onSuccess={handleSprintCreated} />
-      </div>
-
-      <div className="rounded-xl border bg-background/60 p-4 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Current sprint</span>
-            <SprintSelector
-              sprints={sprints}
-              selected={selectedSprint}
-              onSelect={setSelectedSprint}
-            />
-            {selectedSprint && (
-              <>
-                <Separator orientation="vertical" className="h-5" />
-                <SprintStatusBadge status={selectedSprint.status} />
-              </>
-            )}
-          </div>
-
+      <div className="flex items-center justify-between gap-4 pb-4 border-b">
+        <div className="flex items-center gap-3">
+          <SprintSelector
+            sprints={sprints}
+            selected={selectedSprint}
+            onSelect={setSelectedSprint}
+          />
           {selectedSprint && (
-            <div className="flex items-center gap-3 text-xs text-muted-foreground/80">
-              <span>
-                {startLabel || endLabel
-                  ? `${startLabel ?? 'No start'} — ${endLabel ?? 'No end'}`
-                  : 'No dates set'}
-              </span>
-              {totalHours > 0 && (
-                <>
-                  <span className="h-4 w-px bg-border/60" />
-                  <span className="tabular-nums">{totalHours}h total</span>
-                </>
-              )}
-            </div>
+            <>
+              <Separator orientation="vertical" className="h-5" />
+              <SprintStatusBadge status={selectedSprint.status} />
+            </>
+          )}
+          {selectedSprint && (
+            <>
+              <Separator orientation="vertical" className="h-5" />
+              <div className="flex items-center gap-3 text-xs text-muted-foreground/80">
+                <span>
+                  {startLabel || endLabel
+                    ? `${startLabel ?? 'No start'} — ${endLabel ?? 'No end'}`
+                    : 'No dates set'}
+                </span>
+                {totalHours > 0 && (
+                  <>
+                    <span className="h-4 w-px bg-border/60" />
+                    <span className="tabular-nums">{totalHours}h total</span>
+                  </>
+                )}
+              </div>
+            </>
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="cursor-pointer"
-            disabled={!selectedSprint}
-            onClick={() => {
-              if (selectedSprint) setEditSprint(selectedSprint);
-            }}
-          >
-            Edit sprint
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="cursor-pointer text-destructive hover:text-destructive/80"
-            disabled={!selectedSprint}
-            onClick={() => {
-              if (selectedSprint) setDeleteSprint(selectedSprint);
-            }}
-          >
-            Delete
-          </Button>
+        <div className="flex items-center gap-2">
+          <AddSprintDialog onSuccess={handleSprintCreated} />
+          {selectedSprint && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 cursor-pointer"
+                disabled={!selectedSprint}
+                onClick={() => {
+                  if (selectedSprint) setEditSprint(selectedSprint);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+                <span className="sr-only">Edit sprint</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 cursor-pointer text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                disabled={!selectedSprint}
+                onClick={() => {
+                  if (selectedSprint) setDeleteSprint(selectedSprint);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Delete sprint</span>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

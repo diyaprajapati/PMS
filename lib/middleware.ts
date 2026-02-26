@@ -7,7 +7,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Protect dashboard when not authenticated
-  if (!token && (pathname.startsWith("/sprints") || pathname.startsWith("/projects"))) {
+  if (!token && (pathname.startsWith("/dashboard") || pathname.startsWith("/projects"))) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -20,5 +20,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/sprints", "/sprints/:path*", "/login", "/register", "/projects", "/projects/:path*", "/tasks", "/tasks/:path*"],
+  matcher: ["/dashboard", "/dashboard/:path*", "/login", "/register", "/projects", "/projects/:path*", "/tasks", "/tasks/:path*"],
 };

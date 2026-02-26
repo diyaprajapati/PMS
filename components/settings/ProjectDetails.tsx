@@ -1,10 +1,7 @@
-import React, { useState } from 'react'
-import { Card, CardHeader, CardTitle } from '../ui/card'
-import { Badge } from '../ui/badge'
+import { useEffect, useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
-import { Label } from '../ui/label'
 import { Separator } from '../ui/separator'
-import { Calendar, ChartColumn, LayoutList, SquareKanban, Users } from 'lucide-react'
+import { Calendar, ChartColumn, LayoutList, SquareKanban, CheckCircle2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -26,6 +23,81 @@ export default function ProjectDetails({ projectId, project, projectLoading, ref
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const router = useRouter();
+
+    // Stats state
+    const [sprintCount, setSprintCount] = useState<number>(0);
+    const [taskStats, setTaskStats] = useState({ total: 0, todo: 0, inProgress: 0, done: 0 });
+    const [statsLoading, setStatsLoading] = useState(false);
+
+    // Fetch stats
+    useEffect(() => {
+        const fetchStats = async () => {
+            if (!projectId) return;
+
+            setStatsLoading(true);
+            try {
+                // Fetch sprints
+                const sprintsRes = await fetch(`/api/projects/${projectId}/sprints`, {
+                    credentials: 'include',
+                });
+                if (sprintsRes.ok) {
+                    const sprints = await sprintsRes.json();
+                    setSprintCount(Array.isArray(sprints) ? sprints.length : 0);
+                }
+
+                // Fetch all tasks for the project
+                // We need to fetch tasks from all sprints, so we'll query sprints first
+                // and then fetch tasks for each sprint, plus backlog tasks
+                const allTasks: any[] = [];
+
+                // Fetch sprints to get tasks from all sprints
+                if (sprintsRes.ok) {
+                    const sprints = await sprintsRes.json();
+
+                    // Fetch tasks from each sprint
+                    for (const sprint of sprints) {
+                        const sprintTasksRes = await fetch(
+                            `/api/projects/${projectId}/tasks?sprintId=${sprint.id}`,
+                            { credentials: 'include' }
+                        );
+                        if (sprintTasksRes.ok) {
+                            const sprintTasks = await sprintTasksRes.json();
+                            if (Array.isArray(sprintTasks)) {
+                                allTasks.push(...sprintTasks);
+                            }
+                        }
+                    }
+                }
+
+                // Also fetch backlog tasks (tasks without a sprint)
+                const backlogRes = await fetch(`/api/projects/${projectId}/tasks`, {
+                    credentials: 'include',
+                });
+                if (backlogRes.ok) {
+                    const backlogTasks = await backlogRes.json();
+                    if (Array.isArray(backlogTasks)) {
+                        allTasks.push(...backlogTasks);
+                    }
+                }
+
+                // Calculate stats
+                const stats = allTasks.reduce((acc, task) => {
+                    acc.total++;
+                    if (task.status === 'TODO') acc.todo++;
+                    else if (task.status === 'IN_PROGRESS') acc.inProgress++;
+                    else if (task.status === 'DONE') acc.done++;
+                    return acc;
+                }, { total: 0, todo: 0, inProgress: 0, done: 0 });
+                setTaskStats(stats);
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            } finally {
+                setStatsLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, [projectId]);
 
     // Format date helper
     const formatDate = (dateString: string) => {
@@ -151,73 +223,108 @@ export default function ProjectDetails({ projectId, project, projectLoading, ref
     }
 
   return (
-    <div className='flex justify-center'>
-        <Card className='flex flex-col p-4 md:w-[80%] w-full gap-4'>
-            <div className='flex gap-4 items-center'>
-                <Avatar className='size-10'>
+    <div className='flex flex-col gap-6 h-full w-full'>
+        {/* Project Header */}
+        <div className='flex items-center justify-between pb-4 border-b'>
+            <div className='flex gap-3 items-center'>
+                <Avatar className='size-12'>
                     <AvatarImage src={`https://avatar.vercel.sh/${encodeURIComponent(project.name)}`} />
                     <AvatarFallback>{getAvatarFallback(project.name)}</AvatarFallback>
                 </Avatar>
-                <Label className='text-2xl font-semibold'>{project.name}</Label>
-            </div>
-            {project.description && (
-                <div className='text-sm text-muted-foreground'>
-                    {project.description}
-                </div>
-            )}
-            <Separator />
-            <div className='flex flex-col gap-4 pb-6'>
-                <div className='flex items-center gap-2'>
-                    <Calendar className='size-4 text-muted-foreground' />
-                    <span className='text-sm text-muted-foreground'>Created at:</span>
-                    <span className='text-sm font-medium'>{formatDate(project.createdAt)}</span>
-                </div>
-                <div className='flex items-center gap-2'>
-                    <Calendar className='size-4 text-muted-foreground' />
-                    <span className='text-sm text-muted-foreground'>Updated at:</span>
-                    <span className="text-sm font-medium">{formatDate(project.updatedAt)}</span>
+                <div className='flex flex-col'>
+                    <h2 className='text-2xl font-semibold'>{project.name}</h2>
+                    {project.description && (
+                        <p className='text-sm text-muted-foreground'>{project.description}</p>
+                    )}
                 </div>
             </div>
-            <div className='flex flex-col pb-6'>
-                <div className='flex items-center gap-2'>
-                    <ChartColumn />
-                    <Label className='text-lg font-semibold'>Project Analytics</Label>
-                </div>
-                <div>
-                    <span className='text-sm text-muted-foreground'>Overview of project metrics and progress</span>
-                </div>
+            <div className='flex gap-2'>
+                <Button variant='outline' size="sm" className='cursor-pointer' onClick={() => handleEdit(project)}>
+                    Edit Project
+                </Button>
+                <Button variant='outline' size="sm" className='cursor-pointer text-destructive hover:text-destructive/80' onClick={() => handleDeleteClick(project)}>
+                    Delete Project
+                </Button>
             </div>
-            <div className='grid md:grid-cols-2 lg:grid-cols-3 grid-cols-1 gap-4'>
-                <Card className='relative mx-auto w-full pt-0 pb-0'>
-                    <div className='flex items-center gap-2 bg-secondary py-2 px-4'>
-                        <SquareKanban />
-                        <CardTitle>Sprints</CardTitle>
+        </div>
+
+        {/* Project Info */}
+        <div className='flex items-center gap-6 text-sm'>
+            <div className='flex items-center gap-2'>
+                <Calendar className='size-4 text-muted-foreground' />
+                <span className='text-muted-foreground'>Created:</span>
+                <span className='font-medium'>{formatDate(project.createdAt)}</span>
+            </div>
+            <Separator orientation="vertical" className="h-4" />
+            <div className='flex items-center gap-2'>
+                <Calendar className='size-4 text-muted-foreground' />
+                <span className='text-muted-foreground'>Updated:</span>
+                <span className="font-medium">{formatDate(project.updatedAt)}</span>
+            </div>
+        </div>
+
+        {/* Project Analytics */}
+        <div className='flex flex-col gap-4'>
+            <div className='flex items-center gap-2'>
+                <ChartColumn className="size-5" />
+                <h3 className='text-lg font-semibold'>Project Analytics</h3>
+            </div>
+            <div className='grid md:grid-cols-3 grid-cols-1 gap-6'>
+                <div className='flex flex-col gap-2 p-4 rounded-lg border bg-background/60'>
+                    <div className='flex items-center gap-2'>
+                        <SquareKanban className="size-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Total Sprints</span>
                     </div>
-                    <CardHeader>
-                    </CardHeader>
-                </Card>
-                <Card className='relative mx-auto w-full pt-0 pb-0'>
-                    <div className='flex items-center gap-2 bg-secondary py-2 px-4'>
-                        <Users />
-                        <CardTitle>Project Tasks</CardTitle>
+                    {statsLoading ? (
+                        <div className='h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent' />
+                    ) : (
+                        <div className="text-3xl font-bold">{sprintCount}</div>
+                    )}
+                </div>
+
+                <div className='flex flex-col gap-2 p-4 rounded-lg border bg-background/60'>
+                    <div className='flex items-center gap-2'>
+                        <LayoutList className="size-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Total Tasks</span>
                     </div>
-                    <CardHeader>
-                    </CardHeader>
-                </Card>
-                <Card className='relative mx-auto w-full pt-0 pb-0'>
-                    <div className='flex items-center gap-2 bg-secondary py-2 px-4'>
-                        <LayoutList />
-                        <CardTitle>Stories Progress</CardTitle>
+                    {statsLoading ? (
+                        <div className='h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent' />
+                    ) : (
+                        <div className="text-3xl font-bold">{taskStats.total}</div>
+                    )}
+                </div>
+
+                <div className='flex flex-col gap-2 p-4 rounded-lg border bg-background/60'>
+                    <div className='flex items-center gap-2'>
+                        <CheckCircle2 className="size-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Completion</span>
                     </div>
-                    <CardHeader>
-                    </CardHeader>
-                </Card>
+                    {statsLoading ? (
+                        <div className='h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent' />
+                    ) : (
+                        <div className="flex flex-col gap-3">
+                            <div className="text-3xl font-bold">
+                                {taskStats.total > 0 ? Math.round((taskStats.done / taskStats.total) * 100) : 0}%
+                            </div>
+                            <div className="flex items-center gap-3 text-xs">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="size-2 rounded-full bg-slate-400"></div>
+                                    <span className="tabular-nums">{taskStats.todo}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="size-2 rounded-full bg-blue-500"></div>
+                                    <span className="tabular-nums">{taskStats.inProgress}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="size-2 rounded-full bg-emerald-500"></div>
+                                    <span className="tabular-nums">{taskStats.done}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
-            <div className='flex gap-4 mt-4'>
-                <Button variant='outline' className='cursor-pointer hover:border-primary hover:text-primary transition-all duration-200 ease-in-out' onClick={() => handleEdit(project)}>Edit Project</Button>
-                <Button className='cursor-pointer transition-all duration-200 ease-in-out' onClick={() => handleDeleteClick(project)}>Delete Project</Button>
-            </div>
-        </Card>
+        </div>
         <EditProjectDialog
         project={editProject}
         open={editDialogOpen}
