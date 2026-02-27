@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getProjectById } from '@/services/projects.service';
 
 export type ProjectInfo = {
   id: string;
@@ -46,22 +47,13 @@ export function useProjectFromSearchParams() {
     setProjectLoading(true);
 
     try {
-      const res = await fetch(`/api/projects/${id}`, { credentials: 'include' });
-      if (!res.ok) {
-        console.error(`Failed to fetch project ${id}:`, res.status, res.statusText);
-        setProject(null);
-        projectCache.delete(id);
-        setProjectLoading(false);
-        fetchingRef.current = null;
-        return;
-      }
-      const data = await res.json();
+      const data = await getProjectById(id);
       const projectData: ProjectInfo = { 
         id: data.id, 
         name: data.name, 
         description: data.description,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
+        createdAt: data.createdAt ?? '',
+        updatedAt: data.updatedAt ?? '',
       };
       
       // Cache the project data

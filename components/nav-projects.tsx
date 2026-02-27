@@ -38,6 +38,7 @@ export function NavProjects({
     const shouldCarryProject =
       url === '/sprints' ||
       url === '/backlog' ||
+      url === '/bugs' ||
       url.startsWith('/settings/')
 
     if (shouldCarryProject) {

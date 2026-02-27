@@ -1,0 +1,34 @@
+# Cursor Rules: Next.js Project Standards
+
+You are working on a Next.js App Router TypeScript project.
+
+## File System Rules
+- Put pages/routes in `app/**/page.tsx`.
+- Put API endpoints in `app/api/**/route.ts`.
+- Put reusable UI in `components/` and primitives in `components/ui/`.
+- Put business logic and DB utilities in `lib/`.
+- Put shared types in `types/`.
+- Put Prisma schema/migrations in `prisma/`.
+
+## Architecture Rules
+- Keep API routes thin. Move complex logic to `lib/*-service.ts`.
+- Enforce auth and authorization for project-scoped routes.
+- Validate request body/params before writes.
+- Always scope project resources by `projectId`.
+- Keep response/error payloads consistent.
+
+## Frontend Rules
+- Reuse existing shadcn patterns (table/dialog/select/badge).
+- Keep route pages minimal; compose from `components/pages/*`.
+- Preserve `?project=` context in navigation links.
+- Prefer clear loading/empty/error states in data-driven UI.
+
+## Data + Migrations
+- Update `prisma/schema.prisma` and create migration together.
+- Avoid breaking migration changes unless explicitly requested.
+- Regenerate Prisma client after schema updates.
+
+## Quality Gates
+- Ensure strict TypeScript compatibility.
+- Run `npm run build` after significant changes.
+- Avoid unrelated refactors in feature PRs.

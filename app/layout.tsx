@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Outfit, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AppProviders } from "@/components/providers/app-providers";
 import { Toaster } from "@/components/ui/sonner";
 
 const outfit = Outfit({
@@ -38,8 +39,10 @@ export default function RootLayout({
       <body className={`${outfit.variable} ${manrope.variable} ${jetbrainsMono.variable} antialiased`}>
         <Suspense fallback={<div>Loading...</div>}>
           <ThemeProvider>
-            {children}
-            <Toaster />
+            <AppProviders>
+              {children}
+              <Toaster />
+            </AppProviders>
           </ThemeProvider>
         </Suspense>
       </body>

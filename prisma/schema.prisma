@@ -41,6 +41,14 @@ enum TaskPriority {
   P5 // Lowest
 }
 
+enum BugStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  IN_REVIEW
+  FIXED
+  CLOSED
+}
+
 model User {
   id                 String          @id @default(uuid())
   email              String          @unique
@@ -51,12 +59,14 @@ model User {
   updatedAt          DateTime        @updatedAt
   ownedProjects      Project[]       @relation("ProjectOwner")
   projectMemberships ProjectMember[]
+  bugComments        BugComment[]
 }
 
 model Project {
   id          String          @id @default(uuid())
   name        String
   description String?
+  bugCounter  Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   userId      String
@@ -64,6 +74,7 @@ model Project {
   members     ProjectMember[]
   sprints     Sprint[]
   tasks       Task[]
+  bugs        Bug[]
 
   @@index([userId])
 }
@@ -78,6 +89,7 @@ model ProjectMember {
   project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignedTasks Task[]
+  assignedBugs  Bug[]
 
   @@unique([projectId, userId])
   @@index([projectId])
@@ -127,4 +139,40 @@ model Task {
   @@index([parentTaskId])
   @@index([projectId, sprintId])
   @@index([projectId, status])
+}
+
+model Bug {
+  id          String         @id @default(uuid())
+  bugNumber   Int
+  title       String
+  description String?        @db.Text
+  priority    TaskPriority   @default(P3)
+  status      BugStatus      @default(NOT_STARTED)
+  projectId   String
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    ProjectMember? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments    BugComment[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([projectId, bugNumber])
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([projectId, priority])
+}
+
+model BugComment {
+  id        String   @id @default(uuid())
+  bugId     String
+  bug       Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bugId])
+  @@index([authorId])
+  @@index([bugId, createdAt])
 }

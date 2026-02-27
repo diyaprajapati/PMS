@@ -15,6 +15,7 @@ import { Field, FieldGroup, FieldError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { updateProject } from '@/services/projects.service';
 
 const NAME_MAX_LENGTH = 200;
 const DESCRIPTION_MAX_LENGTH = 1000;
@@ -89,29 +90,16 @@ export function EditProjectDialog({
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${project.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || null,
-        }),
+      await updateProject(project.id, {
+        name: name.trim(),
+        description: description.trim() || null,
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        const message = data?.error ?? data?.message ?? 'Failed to update project.';
-        toast.error(message);
-        if (data?.field === 'name') setNameError(data.message ?? message);
-        return;
-      }
 
       toast.success('Project updated.');
       handleClose();
       onSuccess?.();
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

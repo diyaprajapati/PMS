@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 import { validatePassword } from "@/lib/password";
 
 // POST /api/auth/register
@@ -45,26 +44,19 @@ export async function POST(req: Request) {
             },
         });
 
-        const token = jwt.sign(
-            { id: user.id, name: user.name, email: user.email },
-            process.env.JWT_SECRET as string,
-            { expiresIn: "1h" },
-        );
-
-        const response = NextResponse.json(
-            { message: "User created successfully", token },
+        return NextResponse.json(
+            {
+                message: "User created successfully",
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    image: user.image,
+                },
+            },
             { status: 201 },
         );
-
-        response.cookies.set("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-            maxAge: 60 * 60 * 24 * 30,
-        });
-
-        return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error creating user:", error);
         return NextResponse.json(
             { error: "Internal server error" },

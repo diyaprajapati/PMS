@@ -110,6 +110,17 @@ type TaskAssignedEmailParams = {
   projectId: string;
 };
 
+type BugCreatedEmailParams = {
+  toEmail: string;
+  recipientName: string | null;
+  creatorName: string | null;
+  creatorEmail: string;
+  projectName: string;
+  bugIdentifier: string;
+  bugTitle: string;
+  projectId: string;
+};
+
 export async function sendTaskAssignedEmail(
   params: TaskAssignedEmailParams
 ): Promise<void> {
@@ -190,6 +201,89 @@ Task: ${taskTitle}
 View Project: ${projectUrl}
 
 If you have any questions, please contact ${displayAssigner} at ${assignerEmail}.
+
+---
+This is an automated message. Please do not reply to this email.
+    `.trim(),
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+export async function sendBugCreatedEmail(
+  params: BugCreatedEmailParams
+): Promise<void> {
+  const {
+    toEmail,
+    recipientName,
+    creatorName,
+    creatorEmail,
+    projectName,
+    bugIdentifier,
+    bugTitle,
+    projectId,
+  } = params;
+
+  const transporter = createTransporter();
+
+  const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const projectUrl = `${appUrl}/bugs?project=${projectId}`;
+  const displayRecipient = recipientName || toEmail;
+  const displayCreator = creatorName || creatorEmail;
+
+  const mailOptions = {
+    from: `"Project Management System" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `New bug reported in "${projectName}"`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>New Bug Reported</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h1 style="color: #2563eb; margin-top: 0;">New Bug Reported</h1>
+
+            <p>Hello ${displayRecipient},</p>
+
+            <p>
+              <strong>${displayCreator}</strong> reported a new bug in the project
+              <strong>"${projectName}"</strong>.
+            </p>
+
+            <p>
+              <strong>${bugIdentifier}</strong>: ${bugTitle}
+            </p>
+
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${projectUrl}"
+                 style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+                Open Bug Tracker
+              </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+            <p style="color: #999; font-size: 12px;">
+              This is an automated message. Please do not reply to this email.
+            </p>
+          </div>
+        </body>
+      </html>
+    `,
+    text: `
+New Bug Reported
+
+Hello ${displayRecipient},
+
+${displayCreator} reported a new bug in the project "${projectName}".
+
+${bugIdentifier}: ${bugTitle}
+
+Open Bug Tracker: ${projectUrl}
 
 ---
 This is an automated message. Please do not reply to this email.

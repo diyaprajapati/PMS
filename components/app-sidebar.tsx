@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Suspense } from "react"
 import {
-  Command,
+  Bug,
   Inbox,
   Layers,
   Settings2,
@@ -24,6 +24,8 @@ import {
 import { NavProjects } from "./nav-projects"
 import { ThemeToggle } from "./theme-toggle"
 import Image from "next/image"
+import { useCurrentUserQuery } from "@/queries/auth.queries"
+import Link from "next/link"
 
 export type SidebarUser = {
   name: string
@@ -43,6 +45,11 @@ const data = {
       name: "Backlog",
       url: "/backlog",
       icon: Inbox,
+    },
+    {
+      name: "Bug Tracker",
+      url: "/bugs",
+      icon: Bug,
     },
   ],
   navMain: [
@@ -144,35 +151,21 @@ const placeholderUser: SidebarUser = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [user, setUser] = React.useState<SidebarUser | null>(null)
   const [mounted, setMounted] = React.useState(false)
+  const { data: user } = useCurrentUserQuery(mounted)
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
-  React.useEffect(() => {
-    if (!mounted) return
-    let cancelled = false
-    fetch("/api/auth/me", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled || !data?.user) return
-        const u = data.user
-        setUser({
-          name: u.name ?? u.email ?? "User",
-          email: u.email ?? "",
-          avatar: u.image ?? "",
-        })
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [mounted])
-
   // Use a fixed placeholder until mounted so server and client render the same (avoids hydration error).
-  const displayUser = mounted ? (user ?? defaultUser) : placeholderUser
+  const displayUser = mounted
+    ? {
+        name: user?.name ?? user?.email ?? defaultUser.name,
+        email: user?.email ?? defaultUser.email,
+        avatar: user?.image ?? defaultUser.avatar,
+      }
+    : placeholderUser
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -180,14 +173,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="flex gap-4">
-              <a href="/projects">
+              <Link href="/projects">
                 <div className="text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <Image src="/icon.png" alt="Runway" width={32} height={32} />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">Runway</span>
                 </div>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

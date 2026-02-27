@@ -1,0 +1,6 @@
+-- CreateEnum
+CREATE TYPE "BugStatus" AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'IN_REVIEW', 'FIXED', 'CLOSED');
+
+-- AlterTable
+ALTER TABLE "Bug"
+ADD COLUMN "status" "BugStatus" NOT NULL DEFAULT 'NOT_STARTED';

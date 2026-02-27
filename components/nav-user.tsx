@@ -127,8 +127,6 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={async () => {
-                localStorage.removeItem("token");
-                await fetch("/api/auth/logout", { method: "POST" });
                 await signOut({ redirect: false });
                 router.replace("/login");
               }}
