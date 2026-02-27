@@ -47,11 +47,13 @@ function StatusPill({ status, onUpdate }: { status: BugStatus; onUpdate: (s: Bug
 
   const getStatusClasses = (s: BugStatus) => {
     switch (s) {
-      case "OPEN":
+      case "NOT_STARTED":
         return "border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400";
       case "IN_PROGRESS":
         return "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-      case "RESOLVED":
+      case "IN_REVIEW":
+        return "border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400";
+      case "FIXED":
         return "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
       case "CLOSED":
         return "border-slate-500/40 bg-slate-500/10 text-slate-600 dark:text-slate-400";
