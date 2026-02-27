@@ -25,8 +25,21 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Runway - Project Management System",
-  description: "Manage your projects, sprints, and teams efficiently",
+  title: "Runway - Ship work that matters",
+  description: "Project management stripped to its essence. No clutter. No complexity. Just results.",
+  keywords: ["project management", "agile", "sprint planning", "team collaboration", "task management", "productivity"],
+  openGraph: {
+    title: "Runway - Ship work that matters",
+    description: "Project management stripped to its essence. No clutter. No complexity. Just results.",
+    type: "website",
+    url: "https://runway.app",
+    siteName: "Runway",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Runway - Ship work that matters",
+    description: "Project management stripped to its essence. No clutter. No complexity. Just results.",
+  },
 };
 
 export default function RootLayout({
