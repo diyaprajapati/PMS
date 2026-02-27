@@ -159,7 +159,7 @@ function DashboardContent() {
               projectId={projectId}
               project={project}
               projectLoading={projectLoading}
-              tabName="Dashboard"
+              tabName="Sprints"
             />
           </Breadcrumb>
         </div>
@@ -182,7 +182,7 @@ export default function Page() {
           <header className="flex h-20 shrink-0 items-center gap-3 px-6 border-b border-border/50">
             <div className="h-5 w-5 animate-pulse rounded bg-muted" />
             <Separator orientation="vertical" className="h-5" />
-            <span className="text-muted-foreground text-base font-medium">Dashboard</span>
+            <span className="text-muted-foreground text-base font-medium">Sprints</span>
           </header>
         }>
           <DashboardContent />

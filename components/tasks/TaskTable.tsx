@@ -434,7 +434,7 @@ function NewTaskRow({ depth = 0, onSave, placeholder = 'New task...' }: {
     return (
       <button
         onClick={activate}
-        className="w-full flex items-center gap-1.5 text-xs text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-muted/20 transition-colors py-2"
+        className="w-full flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-muted-foreground/40 hover:bg-muted/20 transition-colors py-2"
         style={{ paddingLeft: `${indent}px` }}
       >
         <Plus className="size-3.5 shrink-0" />

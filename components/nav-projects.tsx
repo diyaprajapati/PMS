@@ -36,7 +36,7 @@ export function NavProjects({
 
     // Routes that should always preserve the project context
     const shouldCarryProject =
-      url === '/dashboard' ||
+      url === '/sprints' ||
       url === '/backlog' ||
       url.startsWith('/settings/')
 
@@ -48,7 +48,7 @@ export function NavProjects({
   }
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+    <SidebarGroup>
       {/* <SidebarGroupLabel>Projects</SidebarGroupLabel> */}
       <SidebarMenu>
         {projects.map((item) => {

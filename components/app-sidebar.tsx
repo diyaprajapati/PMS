@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Suspense } from "react"
 import {
+  Command,
   Inbox,
   Layers,
   Settings2,
@@ -15,10 +16,14 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
 } from "./ui/sidebar"
 import { NavProjects } from "./nav-projects"
 import { ThemeToggle } from "./theme-toggle"
+import Image from "next/image"
 
 export type SidebarUser = {
   name: string
@@ -30,8 +35,8 @@ export type SidebarUser = {
 const data = {
   projects: [
     {
-      name: "Dashboard",
-      url: "/dashboard",
+      name: "Sprints",
+      url: "/sprints",
       icon: Layers,
     },
     {
@@ -172,9 +177,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <div className="flex h-12 items-center px-3">
-          <h2 className="text-lg font-semibold tracking-tight">PMS</h2>
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild className="flex gap-4">
+              <a href="/projects">
+                <div className="text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <Image src="/icon.png" alt="Runway" width={32} height={32} />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">Runway</span>
+                </div>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <Suspense fallback={null}>

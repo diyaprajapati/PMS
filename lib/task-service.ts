@@ -12,6 +12,7 @@ type CreateTaskInput = {
   assigneeId?: string | null;
   parentTaskId?: string | null;
   priority?: TaskPriority | null;
+  creatorUserId?: string;
 };
 
 type UpdateTaskInput = {
@@ -87,13 +88,26 @@ export async function createTaskWithRules(input: CreateTaskInput) {
     assigneeId,
     parentTaskId,
     priority,
+    creatorUserId,
   } = input;
 
   return prisma.$transaction(async (tx) => {
+    // If no assignee provided, default to the creator (if they are a project member)
+    let finalAssigneeId = assigneeId ?? null;
+    if (!finalAssigneeId && creatorUserId) {
+      const creatorMember = await tx.projectMember.findFirst({
+        where: { projectId, userId: creatorUserId },
+        select: { id: true },
+      });
+      if (creatorMember) {
+        finalAssigneeId = creatorMember.id;
+      }
+    }
+
     // validate assignee belongs to project
-    if (assigneeId) {
+    if (finalAssigneeId) {
       const member = await tx.projectMember.findUnique({
-        where: { id: assigneeId },
+        where: { id: finalAssigneeId },
         select: { projectId: true },
       });
       if (!member) {
@@ -127,7 +141,7 @@ export async function createTaskWithRules(input: CreateTaskInput) {
           priority: priority ?? undefined,
           estimatedHours: estimatedHours ?? null,
           sprintId: parent?.sprintId ?? null,
-          assigneeId: assigneeId ?? null,
+          assigneeId: finalAssigneeId ?? null,
           parentTaskId,
         },
         include: {
@@ -183,7 +197,7 @@ export async function createTaskWithRules(input: CreateTaskInput) {
         priority: priority ?? undefined,
         estimatedHours: estimatedHours ?? null,
         sprintId: finalSprintId,
-        assigneeId: assigneeId ?? null,
+        assigneeId: finalAssigneeId ?? null,
         parentTaskId: null,
       },
       include: {

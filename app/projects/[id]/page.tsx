@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 /**
- * Redirects /projects/[id] to /dashboard?project=[id] so the main dashboard shows the selected project.
+ * Redirects /projects/[id] to /sprints?project=[id] so the main sprints shows the selected project.
  */
 export default function ProjectRedirectPage() {
   const params = useParams();

@@ -130,7 +130,7 @@ export async function GET(req: Request, context: RouteContext) {
 export async function POST(req: Request, context: RouteContext) {
   const auth = await requireProjectAccess(context.params);
   if (!auth.success) return auth.response;
-  const { projectId } = auth;
+  const { projectId, user } = auth;
 
   let body: {
     title?: string;
@@ -169,6 +169,7 @@ export async function POST(req: Request, context: RouteContext) {
       assigneeId: body.assigneeId ?? null,
       parentTaskId: body.parentTaskId ?? null,
       priority: body.priority ?? null,
+      creatorUserId: user.id,
     });
 
     return NextResponse.json(task, { status: 201 });

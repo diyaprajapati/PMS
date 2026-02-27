@@ -169,9 +169,6 @@ export default function ProjectsPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="border-b border-border/50">
-        <Logo />
-      </div>
       <div className="flex flex-col gap-8 px-6 py-8 md:px-12 md:py-12 lg:px-16 lg:py-16 max-w-[1600px] mx-auto w-full">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-6">
           <div className="flex flex-col gap-3">
@@ -251,7 +248,7 @@ export default function ProjectsPage() {
                 <CardHeader className="flex flex-row items-start justify-between gap-3 p-0 pb-4">
                   <CardTitle className="text-xl leading-tight wrap-break-word font-semibold">
                     <Link
-                      href={`/dashboard?project=${project.id}`}
+                      href={`/sprints?project=${project.id}`}
                       className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer hover:text-primary transition-all duration-200"
                     >
                       {project.name}
