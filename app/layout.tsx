@@ -25,7 +25,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PMS - Project Management System",
+  title: "Runway - Project Management System",
   description: "Manage your projects, sprints, and teams efficiently",
 };
 
