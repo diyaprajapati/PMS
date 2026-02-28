@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireMemberManagement } from "@/lib/route-auth";
+import { requireProjectAccess } from "@/lib/route-auth";
 import { sendTaskAssignedEmail } from "@/lib/email";
 import { getUserProjectRole } from "@/lib/project-permissions";
+import { canAssignTask } from "@/lib/task-permissions";
 import { canAssignRoleTo } from "@/lib/role-rank";
 
 type RouteContext = { params: Promise<{ id: string; taskId: string }> };
 
 // PATCH /api/projects/[id]/tasks/[taskId]/assign – assign task to a member
 export async function PATCH(req: Request, context: RouteContext) {
-  const auth = await requireMemberManagement(context.params);
+  const auth = await requireProjectAccess(context.params);
   if (!auth.success) return auth.response;
   const { projectId, user } = auth;
   const routeParams = await context.params;
@@ -43,7 +44,14 @@ export async function PATCH(req: Request, context: RouteContext) {
   }
 
   // Validate roles and membership
-  // Get actor role
+  const canAssign = await canAssignTask(user.id, projectId);
+  if (!canAssign) {
+    return NextResponse.json(
+      { error: "You don't have permission to assign tasks" },
+      { status: 403 }
+    );
+  }
+
   const actorRole = await getUserProjectRole(user.id, projectId);
   if (!actorRole) {
     return NextResponse.json(
