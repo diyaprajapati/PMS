@@ -31,14 +31,14 @@ export async function canModifyTask(
 }
 
 /**
- * Checks if user can delete a task (admin/owner only)
+ * Checks if user can delete a task (admin/owner/developer).
  */
 export async function canDeleteTask(
   userId: string,
   projectId: string
 ): Promise<boolean> {
   const role = await getUserProjectRole(userId, projectId);
-  return role === "OWNER" || role === "ADMIN";
+  return role === "OWNER" || role === "ADMIN" || role === "DEVELOPER";
 }
 
 /**

@@ -695,7 +695,6 @@ function TaskRow({
                 Move to sprint
               </DropdownMenuItem>
             )}
-            {/* {(onMoveToBacklog || onMoveToSprint) && <DropdownMenuSeparator />} */}
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
@@ -732,11 +731,18 @@ export function TaskTable({
   onRefresh,
   sprintId,
   onLoad,
+  assigneeId: filterAssigneeId,
+  priority: filterPriority,
+  status: filterStatus,
 }: {
   onRefresh?: () => void;
   /** 'backlog' | sprint-uuid | undefined (no filter) */
   sprintId?: string | null;
   onLoad?: (tasks: Task[]) => void;
+  /** Optional filters for sprints view */
+  assigneeId?: string | null;
+  priority?: TaskPriority | null;
+  status?: TaskStatus | null;
 }) {
   const { projectId } = useProjectFromSearchParams();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -746,6 +752,10 @@ export function TaskTable({
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [editTarget, setEditTarget] = useState<Task | null>(null);
+
+  // Keep a stable ref to onLoad so it never causes fetchTasks to re-run
+  const onLoadRef = useRef(onLoad);
+  onLoadRef.current = onLoad;
 
   // -------------------------------------------------------------------------
   // Data fetching
@@ -759,18 +769,23 @@ export function TaskTable({
       if (sprintId && sprintId !== 'backlog') {
         params.set('sprintId', sprintId);
       }
+      if (filterAssigneeId) params.set('assigneeId', filterAssigneeId);
+      if (filterPriority) params.set('priority', filterPriority);
+      if (filterStatus) params.set('status', filterStatus);
 
       const res = await fetch(`/api/projects/${projectId}/tasks?${params}`, { credentials: 'include' });
       if (!res.ok) throw new Error();
       const data: Task[] = await res.json();
       setTasks(data);
-      onLoad?.(data);
+      // Use ref so onLoad is never a fetchTasks dependency
+      onLoadRef.current?.(data);
     } catch {
       toast.error('Failed to load tasks');
     } finally {
       setLoading(false);
     }
-  }, [projectId, sprintId, onLoad]);
+  // NOTE: onLoad intentionally omitted – use onLoadRef instead
+  }, [projectId, sprintId, filterAssigneeId, filterPriority, filterStatus]);
 
   const fetchMembers = useCallback(async () => {
     if (!projectId) return;
@@ -865,8 +880,6 @@ export function TaskTable({
         }
         const newTask: Task = await res.json();
 
-        // Update tasks locally and keep aggregates (onLoad) in sync,
-        // without forcing a full table remount/reload.
         setTasks((prev) => {
           let next: Task[];
           if (parentTaskId) {
@@ -874,7 +887,7 @@ export function TaskTable({
           } else {
             next = [newTask, ...prev];
           }
-          onLoad?.(next);
+          onLoadRef.current?.(next);
           return next;
         });
 
@@ -885,7 +898,7 @@ export function TaskTable({
         toast.error(err instanceof Error ? err.message : 'Failed to create task');
       }
     },
-    [projectId, sprintId, onLoad],
+    [projectId, sprintId],
   );
 
   const handleDelete = useCallback(async (task: Task) => {
@@ -904,7 +917,7 @@ export function TaskTable({
       setDeleteTarget(null);
       setTasks((prev) => {
         const updated = removeTaskFromList(prev, task.id);
-        onLoad?.(updated);
+        onLoadRef.current?.(updated);
         return updated;
       });
       onRefresh?.();
@@ -913,7 +926,7 @@ export function TaskTable({
     } finally {
       setDeleting(false);
     }
-  }, [projectId, onLoad, onRefresh]);
+  }, [projectId, onRefresh]);
 
   const handleMoveToBacklog = useCallback(
     async (task: Task) => {
@@ -1045,11 +1058,6 @@ export function TaskTable({
   if (loading) {
     return (
       <div className="rounded-xl border border-border/60 bg-background/60 overflow-hidden">
-        {/* <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-border/60 bg-background/80">
-          <div className="h-6 w-20 rounded-full bg-muted animate-pulse" />
-          <div className="h-6 w-20 rounded-full bg-muted animate-pulse" />
-          <div className="h-6 w-20 rounded-full bg-muted animate-pulse" />
-        </div> */}
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}
@@ -1070,21 +1078,6 @@ export function TaskTable({
   return (
     <>
       <div className="rounded-xl border border-border/60 bg-background/60 overflow-hidden">
-        {/* Top controls row – minimalist chips, like filters/grouping */}
-        {/* <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3 bg-background/80 border-b border-border/60">
-          <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-1 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground bg-background hover:bg-accent/40 transition-colors">
-              Assignee
-            </button>
-            <button className="inline-flex items-center gap-1 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground bg-background hover:bg-accent/40 transition-colors">
-              Status
-            </button>
-            <button className="inline-flex items-center gap-1 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground bg-background hover:bg-accent/40 transition-colors">
-              Expand
-            </button>
-          </div>
-        </div> */}
-
         {/* Column header row – Title | Status | Priority | Assignee | Actions */}
         <div className="flex items-center px-4 py-2 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
           <div className="flex-1 text-left">Title</div>
@@ -1097,20 +1090,25 @@ export function TaskTable({
         <div>
           {tasks.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-sm text-muted-foreground">No tasks yet</p>
+              <p className="text-sm text-muted-foreground">No tasks found</p>
               <p className="text-xs text-muted-foreground/50 mt-1">
-                Click &ldquo;New task&rdquo; below to add one
+                {filterAssigneeId || filterPriority || filterStatus
+                  ? 'Try adjusting or clearing your filters'
+                  : 'Click "New task" below to add one'}
               </p>
             </div>
           ) : (
             renderRows(tasks, 0)
           )}
 
-          <NewTaskRow
-            depth={0}
-            onSave={(title) => handleCreate(title, null)}
-            placeholder="New task..."
-          />
+          {/* Only show new task row when no filters are active */}
+          {!filterAssigneeId && !filterPriority && !filterStatus && (
+            <NewTaskRow
+              depth={0}
+              onSave={(title) => handleCreate(title, null)}
+              placeholder="New task..."
+            />
+          )}
         </div>
       </div>
 

@@ -196,7 +196,7 @@ export async function DELETE(req: Request, context: RouteContext) {
     );
   }
 
-  // Check if user can delete tasks (admin/owner only)
+  // Check if user can delete tasks (admin/owner/developer)
   const canDelete = await canDeleteTask(user.id, projectId);
   if (!canDelete) {
     return NextResponse.json(

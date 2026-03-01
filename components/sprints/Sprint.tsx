@@ -1,12 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronDown, Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, Filter, Pencil, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +28,30 @@ import { SprintStatusBadge } from './SprintStatusBadge';
 import { TaskTable } from '@/components/tasks/TaskTable';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import { cn } from '@/lib/utils';
-import type { Task } from '@/types/task';
+import type { Task, TaskPriority, TaskStatus } from '@/types/task';
+
+const STATUS_FILTER_OPTIONS: { value: TaskStatus; label: string }[] = [
+  { value: 'TODO', label: 'To Do' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'DONE', label: 'Done' },
+];
+
+const PRIORITY_FILTER_OPTIONS: { value: TaskPriority; label: string }[] = [
+  { value: 'P0', label: 'P0 Critical' },
+  { value: 'P1', label: 'P1 High' },
+  { value: 'P2', label: 'P2 Medium High' },
+  { value: 'P3', label: 'P3 Medium' },
+  { value: 'P4', label: 'P4 Low' },
+  { value: 'P5', label: 'P5 Lowest' },
+];
+
+const ALL_FILTER_VALUE = '__all__';
+
+/** Display label so assignee filter works for both name and email: name (trimmed) or email. */
+function getMemberLabel(m: { name: string | null; email: string }): string {
+  const name = m.name?.trim();
+  return name || m.email || 'Unnamed';
+}
 
 type SprintSelectorProps = {
   sprints: SprintType[];
@@ -77,6 +107,8 @@ function SprintSelector({ sprints, selected, onSelect }: SprintSelectorProps) {
   );
 }
 
+type Member = { id: string; name: string | null; email: string };
+
 export default function Sprint() {
   const { projectId } = useProjectFromSearchParams();
 
@@ -85,6 +117,11 @@ export default function Sprint() {
   const [sprintsLoading, setSprintsLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
+  const [members, setMembers] = useState<Member[]>([]);
+
+  const [filterAssigneeId, setFilterAssigneeId] = useState<string | null>(null);
+  const [filterPriority, setFilterPriority] = useState<TaskPriority | null>(null);
+  const [filterStatus, setFilterStatus] = useState<TaskStatus | null>(null);
 
   const [editSprint, setEditSprint] = useState<SprintType | null>(null);
   const [deleteSprint, setDeleteSprint] = useState<SprintType | null>(null);
@@ -114,13 +151,25 @@ export default function Sprint() {
     }
   }, [projectId]);
 
+  const fetchMembers = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/members`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data.map((m: { id: string; name: string | null; email: string }) => ({ id: m.id, name: m.name, email: m.email })));
+      }
+    } catch { /* silent */ }
+  }, [projectId]);
+
   useEffect(() => {
     if (projectId) {
       setSprints([]);
       setSelectedSprint(null);
       void fetchSprints();
+      void fetchMembers();
     }
-  }, [projectId, fetchSprints]);
+  }, [projectId, fetchSprints, fetchMembers]);
 
   const handleSprintCreated = () => {
     void fetchSprints();
@@ -155,14 +204,19 @@ export default function Sprint() {
     }
   };
 
+  // Use a ref to hold the latest setter so the callback identity never changes,
+  // preventing TaskTable's fetchTasks from re-running on every totalHours update.
+  const setTotalHoursRef = useRef(setTotalHours);
+  setTotalHoursRef.current = setTotalHours;
+
   const handleTasksLoaded = useCallback((tasks: Task[]) => {
     const sumHours = (list: Task[]): number =>
       list.reduce((acc, t) => {
         const sub = t.subtasks ? sumHours(t.subtasks) : 0;
         return acc + (t.estimatedHours ?? 0) + sub;
       }, 0);
-    setTotalHours(sumHours(tasks));
-  }, []);
+    setTotalHoursRef.current(sumHours(tasks));
+  }, []); // stable – no deps
 
   const formatDate = (value: string | null) =>
     value ? format(new Date(value), 'MMM d, yyyy') : null;
@@ -182,6 +236,14 @@ export default function Sprint() {
   const endLabel =
     selectedSprint && formatDate(selectedSprint.endDate);
 
+  // Reset filters when switching sprints
+  const handleSprintSelect = (sprint: SprintType) => {
+    setSelectedSprint(sprint);
+    setFilterAssigneeId(null);
+    setFilterPriority(null);
+    setFilterStatus(null);
+  };
+
   return (
     <div className="flex flex-col gap-6 h-full w-full overflow-y-auto">
       <div className="flex items-center justify-between gap-4 pb-4 border-b">
@@ -189,7 +251,7 @@ export default function Sprint() {
           <SprintSelector
             sprints={sprints}
             selected={selectedSprint}
-            onSelect={setSelectedSprint}
+            onSelect={handleSprintSelect}
           />
           {selectedSprint && (
             <>
@@ -260,11 +322,84 @@ export default function Sprint() {
 
       {selectedSprint && (
         <div className="flex flex-col gap-3 flex-1 overflow-y-auto">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+            <Filter className="size-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs font-medium text-muted-foreground/80 mr-1">Filters:</span>
+            <Select
+              value={filterAssigneeId ?? ALL_FILTER_VALUE}
+              onValueChange={(v) => setFilterAssigneeId(v === ALL_FILTER_VALUE ? null : v)}
+            >
+              <SelectTrigger size="sm" className="h-8 w-[140px] text-xs font-normal">
+                <SelectValue placeholder="Assignee" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={ALL_FILTER_VALUE}>All assignees</SelectItem>
+                {members.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {getMemberLabel(m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={filterPriority ?? ALL_FILTER_VALUE}
+              onValueChange={(v) => setFilterPriority(v === ALL_FILTER_VALUE ? null : (v as TaskPriority))}
+            >
+              <SelectTrigger size="sm" className="h-8 w-[140px] text-xs font-normal">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={ALL_FILTER_VALUE}>All priorities</SelectItem>
+                {PRIORITY_FILTER_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={filterStatus ?? ALL_FILTER_VALUE}
+              onValueChange={(v) => setFilterStatus(v === ALL_FILTER_VALUE ? null : (v as TaskStatus))}
+            >
+              <SelectTrigger size="sm" className="h-8 w-[140px] text-xs font-normal">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value={ALL_FILTER_VALUE}>All statuses</SelectItem>
+                {STATUS_FILTER_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(filterAssigneeId || filterPriority || filterStatus) && (
+              <>
+                <Separator orientation="vertical" className="h-5" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setFilterAssigneeId(null);
+                    setFilterPriority(null);
+                    setFilterStatus(null);
+                  }}
+                >
+                  <X className="size-3" />
+                  Clear filters
+                </Button>
+              </>
+            )}
+          </div>
           <TaskTable
             key={`${selectedSprint.id}-${refreshKey}`}
             sprintId={selectedSprint.id}
             onRefresh={() => setRefreshKey((k) => k + 1)}
             onLoad={handleTasksLoaded}
+            assigneeId={filterAssigneeId}
+            priority={filterPriority}
+            status={filterStatus}
           />
         </div>
       )}
