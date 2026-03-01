@@ -60,7 +60,7 @@ export function NavProjects({
             <SidebarMenuItem key={item.name}>
               <SidebarMenuButton asChild isActive={isActive} className="hover:border hover:border-primary hover:text-sidebar-accent-foreground">
                 {href.startsWith('/') ? (
-                  <Link href={href}>
+                  <Link href={href} prefetch={true}>
                     <item.icon />
                     <span>{item.name}</span>
                   </Link>

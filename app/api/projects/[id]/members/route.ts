@@ -21,17 +21,8 @@ export async function GET(_req: Request, context: RouteContext) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Ensure the project owner always has a real ProjectMember record so they
-    // can be assigned to tasks (task.assigneeId references ProjectMember.id).
-    // This upsert is idempotent – it only creates the record once.
-    await prisma.projectMember.upsert({
-      where: { projectId_userId: { projectId, userId: project.userId } },
-      update: {},
-      create: { projectId, userId: project.userId, role: "OWNER" },
-    });
-
-    // Fetch all members (owner is now guaranteed to be in this list)
-    const members = await prisma.projectMember.findMany({
+    // Fetch members first
+    let members = await prisma.projectMember.findMany({
       where: { projectId },
       include: {
         user: {
@@ -40,6 +31,25 @@ export async function GET(_req: Request, context: RouteContext) {
       },
       orderBy: { createdAt: "asc" },
     });
+
+    // Only ensure owner has a ProjectMember record when missing (avoids write on every GET)
+    const ownerInList = members.some((m) => m.userId === project.userId);
+    if (!ownerInList) {
+      await prisma.projectMember.upsert({
+        where: { projectId_userId: { projectId, userId: project.userId } },
+        update: {},
+        create: { projectId, userId: project.userId, role: "OWNER" },
+      });
+      members = await prisma.projectMember.findMany({
+        where: { projectId },
+        include: {
+          user: {
+            select: { id: true, email: true, name: true, image: true },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    }
 
     // Put owner first, then everyone else
     const ownerEntry = members.find((m) => m.userId === project.userId);

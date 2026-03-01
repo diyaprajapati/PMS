@@ -208,6 +208,9 @@ export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProp
                     disabled={commentMutation.isPending}
                     a11ySuggestionsListLabel="Suggested team members"
                     singleLine={false}
+                    customSuggestionsContainer={(children) => (
+                      <div className="mentions-suggestions-wrapper">{children}</div>
+                    )}
                     style={{
                       control: {
                         fontSize: 14,
@@ -216,10 +219,10 @@ export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProp
                       },
                       input: {
                         padding: '12px 14px',
-                        border: '1px solid hsl(var(--border))',
+                        border: '1px solid var(--border)',
                         borderRadius: '0.65rem',
-                        backgroundColor: 'hsl(var(--background))',
-                        color: 'hsl(var(--foreground))',
+                        backgroundColor: 'var(--background)',
+                        color: 'var(--foreground)',
                         fontFamily: 'var(--font-sans)',
                         fontSize: 14,
                         lineHeight: 1.6,
@@ -236,8 +239,8 @@ export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProp
                       },
                       suggestions: {
                         list: {
-                          backgroundColor: 'hsl(var(--popover))',
-                          border: '1px solid hsl(var(--border))',
+                          backgroundColor: 'var(--popover)',
+                          border: '1px solid var(--border)',
                           borderRadius: '0.65rem',
                           fontSize: 14,
                           maxHeight: 240,
@@ -247,12 +250,12 @@ export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProp
                         item: {
                           padding: '10px 12px',
                           borderRadius: '0.5rem',
-                          backgroundColor: 'hsl(var(--popover))',
-                          color: 'hsl(var(--popover-foreground))',
+                          backgroundColor: 'var(--popover)',
+                          color: 'var(--popover-foreground)',
                           cursor: 'pointer',
                           '&focused': {
-                            backgroundColor: 'hsl(var(--accent))',
-                            color: 'hsl(var(--accent-foreground))',
+                            backgroundColor: 'var(--accent)',
+                            color: 'var(--accent-foreground)',
                           },
                         },
                       },
@@ -267,11 +270,11 @@ export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProp
                       markup="@[__display__](__id__)"
                       displayTransform={(_id, display) => `@${display}`}
                       style={{
-                        backgroundColor: 'hsl(var(--primary) / 0.1)',
-                        border: '1px solid hsl(var(--primary) / 0.2)',
+                        backgroundColor: 'color-mix(in oklch, var(--primary) 10%, transparent)',
+                        border: '1px solid color-mix(in oklch, var(--primary) 20%, transparent)',
                         borderRadius: '9999px',
                         padding: '2px 8px',
-                        color: 'hsl(var(--primary))',
+                        color: 'var(--primary)',
                         fontSize: '0.75rem',
                         fontWeight: 500,
                       }}

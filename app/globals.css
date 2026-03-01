@@ -158,6 +158,18 @@
     font-size: 1.5rem;
   }
 
+  /* React-mentions suggestions list: ensure dark background in dark mode */
+  .dark .mentions-suggestions-wrapper,
+  .dark .mentions-suggestions-wrapper ul,
+  .dark .mentions-suggestions-wrapper li {
+    background-color: var(--popover) !important;
+    color: var(--popover-foreground) !important;
+  }
+  .dark .mentions-suggestions-wrapper li[aria-selected="true"] {
+    background-color: var(--accent) !important;
+    color: var(--accent-foreground) !important;
+  }
+
   /* Better line height for readability */
   p {
     line-height: 1.7;

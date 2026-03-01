@@ -1,10 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { BugIcon } from "lucide-react";
 import { AddBugDialog } from "@/components/bugs/AddBugDialog";
 import { BugTable } from "@/components/bugs/BugTable";
-import { BugDetailSheet } from "@/components/bugs/BugDetailSheet";
+
+// Lazy-load the detail sheet (includes react-mentions) so /bugs initial render is faster
+const BugDetailSheet = dynamic(
+  () => import("@/components/bugs/BugDetailSheet").then((m) => ({ default: m.BugDetailSheet })),
+  { ssr: false }
+);
 
 export function BugTracker() {
   const [selectedBugId, setSelectedBugId] = useState<string | null>(null);
@@ -32,16 +38,19 @@ export function BugTracker() {
 
       <BugTable onSelectBug={openBug} selectedBugId={selectedBugId} />
 
-      <BugDetailSheet
-        bugId={selectedBugId}
-        open={sheetOpen}
-        onOpenChange={(open) => {
-          setSheetOpen(open);
-          if (!open) {
-            setSelectedBugId(null);
-          }
-        }}
-      />
+      {/* Mount sheet only when opened so the detail chunk (react-mentions, etc.) loads on demand */}
+      {sheetOpen && (
+        <BugDetailSheet
+          bugId={selectedBugId}
+          open={sheetOpen}
+          onOpenChange={(open) => {
+            setSheetOpen(open);
+            if (!open) {
+              setSelectedBugId(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -24,6 +24,7 @@ export function useBugsQuery(projectId: string | null) {
     queryKey: projectId ? bugQueryKeys.all(projectId) : ["bugs", "no-project"],
     queryFn: () => getBugs(projectId!),
     enabled: !!projectId,
+    staleTime: 30_000, // 30s – avoid refetch on every mount when navigating back
   });
 }
 
@@ -40,6 +41,7 @@ export function useProjectMembersQuery(projectId: string | null) {
     queryKey: projectId ? bugQueryKeys.members(projectId) : ["project-members", "no-project"],
     queryFn: () => getProjectMembers(projectId!),
     enabled: !!projectId,
+    staleTime: 60_000, // 1 min – members change rarely; speeds up bugs/sprints/backlog
   });
 }
 
