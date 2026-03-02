@@ -86,10 +86,21 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <div className="flex items-center gap-12 text-sm text-foreground/50 font-mono">
+            <div className="flex items-center gap-12 text-sm text-foreground/50 font-mono mb-12">
               <span>Free for now</span>
               <span>No credit card</span>
               <span>Always simple</span>
+            </div>
+
+            {/* Peerlist Badge */}
+            <div>
+              <a href="https://peerlist.io/dhruvdabhi/project/runway--ship-work-that-matters" target="_blank" rel="noreferrer">
+                <img
+                  src="https://peerlist.io/api/v1/projects/embed/PRJHA9E97MQO6AQJECNA8KOKB9KBML?showUpvote=false&theme=light"
+                  alt="Runway - Ship work that matters"
+                  style={{ width: 'auto', height: '72px' }}
+                />
+              </a>
             </div>
           </div>
         </div>
@@ -286,6 +297,17 @@ export default function LandingPage() {
       {/* Footer - Minimal */}
       <footer className="border-t border-foreground/10">
         <div className="max-w-[1400px] mx-auto px-8 md:px-16 py-12">
+          {/* Peerlist Badge */}
+          <div className="flex justify-center mb-12">
+            <a href="https://peerlist.io/dhruvdabhi/project/runway--ship-work-that-matters" target="_blank" rel="noreferrer">
+              <img
+                src="https://peerlist.io/api/v1/projects/embed/PRJHA9E97MQO6AQJECNA8KOKB9KBML?showUpvote=false&theme=light"
+                alt="Runway - Ship work that matters"
+                style={{ width: 'auto', height: '72px' }}
+              />
+            </a>
+          </div>
+
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center gap-3">
               <Image src="/logo.png" alt="Runway" width={24} height={24} className="w-6 h-6" />
