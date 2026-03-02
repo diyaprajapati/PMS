@@ -29,10 +29,11 @@ export async function POST(req: Request, context: RouteContext) {
     if (!auth.success) return auth.response;
     const { projectId } = auth;
 
-    let body: { 
+    let body: {
         title?: string
         startDate?: Date
         endDate?: Date
+        transferUnfinishedTasks?: boolean
     };
     try {
         body = await req.json();
@@ -64,6 +65,37 @@ export async function POST(req: Request, context: RouteContext) {
         const sprint = await prisma.sprint.create({
             data: { title, projectId, startDate, endDate },
         });
+
+        // If transferUnfinishedTasks is true, move all unfinished tasks from other sprints to this new sprint
+        if (body.transferUnfinishedTasks) {
+            // Get all parent tasks that are unfinished and in other sprints
+            const unfinishedParentTasks = await prisma.task.findMany({
+                where: {
+                    projectId,
+                    sprintId: { not: null },
+                    status: { in: ["TODO", "IN_PROGRESS"] },
+                    parentTaskId: null,
+                },
+                select: { id: true },
+            });
+
+            const parentTaskIds = unfinishedParentTasks.map(t => t.id);
+
+            if (parentTaskIds.length > 0) {
+                // Update parent tasks to new sprint
+                await prisma.task.updateMany({
+                    where: { id: { in: parentTaskIds } },
+                    data: { sprintId: sprint.id },
+                });
+
+                // Update all their subtasks to the new sprint as well
+                await prisma.task.updateMany({
+                    where: { parentTaskId: { in: parentTaskIds } },
+                    data: { sprintId: sprint.id },
+                });
+            }
+        }
+
         return NextResponse.json(sprint, { status: 201 });
     } catch (error: unknown) {
         console.error("Error creating sprint:", error);

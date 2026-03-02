@@ -766,7 +766,7 @@ export function TaskTable({
     try {
       setLoading(true);
       const params = new URLSearchParams({ includeSubtasks: 'true', parentTaskId: 'null' });
-      if (sprintId && sprintId !== 'backlog') {
+      if (sprintId) {
         params.set('sprintId', sprintId);
       }
       if (filterAssigneeId) params.set('assigneeId', filterAssigneeId);

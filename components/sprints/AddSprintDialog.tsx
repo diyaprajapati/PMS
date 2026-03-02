@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button"
@@ -19,10 +19,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Plus } from "lucide-react"
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
+import { getSprints, createSprint, type Sprint } from '@/services/sprints.service';
+import { ApiError } from '@/services/http-client';
 
 export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
   const { projectId } = useProjectFromSearchParams();
@@ -32,12 +35,16 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [transferUnfinishedTasks, setTransferUnfinishedTasks] = useState(false);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [loadingSprints, setLoadingSprints] = useState(false);
 
   const resetForm = () => {
     setTitle('');
     setStartDate(undefined);
     setEndDate(undefined);
     setTitleError(null);
+    setTransferUnfinishedTasks(false);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -45,9 +52,20 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
     setOpen(next);
   };
 
+  // Fetch sprints when dialog opens
+  useEffect(() => {
+    if (open && projectId) {
+      setLoadingSprints(true);
+      getSprints(projectId)
+        .then((data) => setSprints(data))
+        .catch(() => setSprints([]))
+        .finally(() => setLoadingSprints(false));
+    }
+  }, [open, projectId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       setTitleError('Title is required');
@@ -67,30 +85,22 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/sprints`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: trimmedTitle,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-        }),
+      await createSprint(projectId, {
+        title: trimmedTitle,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        transferUnfinishedTasks,
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        const message = data?.error ?? 'Failed to create sprint.';
-        toast.error(message);
-        if (data?.field === 'title') setTitleError(data.message ?? message);
-        return;
-      }
 
       toast.success('Sprint created successfully');
       handleOpenChange(false);
       onSuccess?.();
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast.error(error.message);
+      } else {
+        toast.error('Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -179,6 +189,23 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
                 </PopoverContent>
               </Popover>
             </Field>
+            {!loadingSprints && sprints.length > 0 && (
+              <Field>
+                <div className="flex items-center space-x-2 py-2">
+                  <Checkbox
+                    id="transferUnfinishedTasks"
+                    checked={transferUnfinishedTasks}
+                    onCheckedChange={(checked) => setTransferUnfinishedTasks(checked as boolean)}
+                  />
+                  <Label
+                    htmlFor="transferUnfinishedTasks"
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Transfer unfinished tasks (To Do / In Progress) from previous sprints
+                  </Label>
+                </div>
+              </Field>
+            )}
           </FieldGroup>
           <DialogFooter className='flex justify-end mt-4'>
             <DialogClose asChild>
