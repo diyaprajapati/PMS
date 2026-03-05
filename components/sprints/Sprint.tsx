@@ -393,9 +393,7 @@ export default function Sprint() {
             )}
           </div>
           <TaskTable
-            key={`${selectedSprint.id}-${refreshKey}`}
             sprintId={selectedSprint.id}
-            onRefresh={() => setRefreshKey((k) => k + 1)}
             onLoad={handleTasksLoaded}
             assigneeId={filterAssigneeId}
             priority={filterPriority}

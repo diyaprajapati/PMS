@@ -17,7 +17,6 @@ import { TaskDetailSheet } from './TaskDetailSheet';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { Task, TaskPriority, TaskStatus } from '@/types/task';
 
 // ---------------------------------------------------------------------------
@@ -354,10 +353,16 @@ function EstimateField({ value, onSave }: { value: number | null; onSave: (v: nu
 // TitleField – double-click to edit
 // ---------------------------------------------------------------------------
 
-function TitleField({ value, onSave, placeholder = 'Task title...' }: {
+function TitleField({
+  value,
+  onSave,
+  placeholder = 'Task title...',
+  editable = true,
+}: {
   value: string;
   onSave: (v: string) => void;
   placeholder?: string;
+  editable?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -374,6 +379,14 @@ function TitleField({ value, onSave, placeholder = 'Task title...' }: {
     if (t && t !== value) onSave(t);
     setEditing(false);
   };
+
+  if (!editable) {
+    return (
+      <span className="block text-sm font-medium truncate">
+        {value}
+      </span>
+    );
+  }
 
   if (editing) {
     return (
@@ -396,8 +409,8 @@ function TitleField({ value, onSave, placeholder = 'Task title...' }: {
   return (
     <span
       className="block text-sm font-medium cursor-default select-none truncate"
+      onClick={(e) => e.stopPropagation()}
       onDoubleClick={startEdit}
-      title={value}
     >
       {value}
     </span>
@@ -548,10 +561,11 @@ function TaskRow({
         {/* <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild> */}
-              <div className="w-full min-w-0">
+              <div className="w-full min-w-0 cursor-pointer">
                 <TitleField
                   value={task.title}
                   onSave={(title) => onUpdate({ title })}
+                  editable={isMain}
                 />
               </div>
             {/* </TooltipTrigger>
@@ -751,14 +765,12 @@ function TaskRow({
 // ---------------------------------------------------------------------------
 
 export function TaskTable({
-  onRefresh,
   sprintId,
   onLoad,
   assigneeId: filterAssigneeId,
   priority: filterPriority,
   status: filterStatus,
 }: {
-  onRefresh?: () => void;
   /** 'backlog' | sprint-uuid | undefined (no filter) */
   sprintId?: string | null;
   onLoad?: (tasks: Task[]) => void;
@@ -945,13 +957,12 @@ export function TaskTable({
         onLoadRef.current?.(updated);
         return updated;
       });
-      onRefresh?.();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete task');
     } finally {
       setDeleting(false);
     }
-  }, [projectId, onRefresh]);
+  }, [projectId]);
 
   const handleMoveToBacklog = useCallback(
     async (task: Task) => {
@@ -972,14 +983,13 @@ export function TaskTable({
         }
         toast.success('Task moved to backlog');
         fetchTasks();
-        onRefresh?.();
       } catch (err: unknown) {
         toast.error(
           err instanceof Error ? err.message : 'Failed to move task to backlog',
         );
       }
     },
-    [projectId, fetchTasks, onRefresh],
+    [projectId, fetchTasks],
   );
 
   const handleMoveToSprint = useCallback(
@@ -1014,14 +1024,13 @@ export function TaskTable({
         }
         toast.success('Task moved to sprint');
         fetchTasks();
-        onRefresh?.();
       } catch (err: unknown) {
         toast.error(
           err instanceof Error ? err.message : 'Failed to move task to sprint',
         );
       }
     },
-    [projectId, fetchTasks, onRefresh],
+    [projectId, fetchTasks],
   );
 
   const toggleExpand = (taskId: string) =>
@@ -1154,7 +1163,6 @@ export function TaskTable({
         }}
         onSuccess={() => {
           fetchTasks();
-          onRefresh?.();
         }}
       />
 
@@ -1167,7 +1175,6 @@ export function TaskTable({
         }}
         onUpdated={() => {
           fetchTasks();
-          onRefresh?.();
         }}
       />
     </>

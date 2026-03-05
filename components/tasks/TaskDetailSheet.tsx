@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useProjectFromSearchParams } from "@/hooks/use-project-from-search-params";
@@ -21,10 +21,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { Input } from "../ui/input";
 
 type Member = {
   id: string;
@@ -67,6 +66,7 @@ export function TaskDetailSheet({
   const [saving, setSaving] = useState(false);
 
   const [title, setTitle] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
   const [description, setDescription] = useState("");
   const [acceptanceCriteria, setAcceptanceCriteria] = useState("");
   const [status, setStatus] = useState<TaskStatus>("TODO");
@@ -176,6 +176,9 @@ export function TaskDetailSheet({
       setTask(updated);
       toast.success("Subtask updated");
       onUpdated?.();
+      // Close the sheet after a successful save so it doesn't appear to "re-open"
+      onOpenChange(false);
+      setTask(null);
     } catch (error: unknown) {
       toast.error(
         error instanceof Error ? error.message : "Failed to update subtask",
@@ -195,13 +198,76 @@ export function TaskDetailSheet({
   };
 
   const isSubtask = !!task?.parentTaskId;
+  const titleRef = useRef<HTMLDivElement | null>(null);
+
+  const startTitleEdit = () => {
+    if (!task) return;
+    setEditingTitle(true);
+    // focus contentEditable div on next tick
+    setTimeout(() => {
+      if (titleRef.current) {
+        const el = titleRef.current;
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        el.focus();
+      }
+    }, 0);
+  };
+
+  const finishTitleEdit = (commit: boolean) => {
+    if (!task) {
+      setEditingTitle(false);
+      return;
+    }
+    const current = titleRef.current?.innerText ?? title;
+    if (commit) {
+      const next = current.trim();
+      setTitle(next || task.title);
+    } else {
+      // revert
+      setTitle(task.title);
+      if (titleRef.current) {
+        titleRef.current.innerText = task.title;
+      }
+    }
+    setEditingTitle(false);
+  };
 
   return (
     <Sheet open={open} onOpenChange={close}>
       <SheetContent className="w-full sm:max-w-2xl flex flex-col p-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/50">
-          <SheetTitle className="text-xl font-display">
-            {task ? task.title : "Subtask details"}
+          <SheetTitle
+            className="text-xl font-display cursor-text break-words"
+            onDoubleClick={startTitleEdit}
+          >
+            {editingTitle ? (
+              <div
+                ref={titleRef}
+                contentEditable
+                suppressContentEditableWarning
+                className="outline-none border-b border-dashed border-border/60 pb-0.5"
+                onBlur={() => finishTitleEdit(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    finishTitleEdit(true);
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    finishTitleEdit(false);
+                  }
+                }}
+              >
+                {title || (task ? task.title : "Subtask details")}
+              </div>
+            ) : (
+              title || (task ? task.title : "Subtask details")
+            )}
           </SheetTitle>
           <SheetDescription className="text-xs font-medium text-muted-foreground/80">
             {task
@@ -226,46 +292,14 @@ export function TaskDetailSheet({
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wide font-medium text-muted-foreground/80">
-                  Title
+                  Description
                 </Label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                  placeholder="Add a short description..."
                 />
-              </div>
-
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs uppercase tracking-wide font-medium text-muted-foreground/80">
-                    Description
-                  </Label>
-                  <Textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={4}
-                    placeholder="Add markdown-friendly description, links, etc."
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-muted-foreground/80">
-                      Preview
-                    </span>
-                    <span className="text-[11px] text-muted-foreground/70">
-                      Supports GitHub-flavored Markdown
-                    </span>
-                  </div>
-                  <div className="border border-border/60 rounded-lg px-3 py-2 bg-muted/20 text-sm text-foreground/90 min-h-[72px]">
-                    {description.trim() ? (
-                      <MarkdownRenderer content={description} />
-                    ) : (
-                      <span className="text-xs text-muted-foreground/70 italic">
-                        Nothing to preview yet. Start typing above to see it here.
-                      </span>
-                    )}
-                  </div>
-                </div>
               </div>
 
               <div className="space-y-2">

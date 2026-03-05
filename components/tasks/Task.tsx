@@ -36,7 +36,7 @@ export default function Task() {
           Manage tasks and subtasks for {project.name}
         </p>
       </div>
-      <TaskTable key={refreshKey} onRefresh={() => setRefreshKey((k) => k + 1)} />
+      <TaskTable />
     </div>
   );
 }

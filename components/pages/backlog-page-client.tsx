@@ -61,9 +61,7 @@ function BacklogContent() {
 
         {projectId ? (
           <TaskTable
-            key={refreshKey}
             sprintId="backlog"
-            onRefresh={() => setRefreshKey((key) => key + 1)}
             onLoad={handleTasksLoaded}
           />
         ) : null}
