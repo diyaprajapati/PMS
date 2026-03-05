@@ -17,6 +17,7 @@ import { TaskDetailSheet } from './TaskDetailSheet';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { Task, TaskPriority, TaskStatus } from '@/types/task';
 
 // ---------------------------------------------------------------------------
@@ -394,7 +395,7 @@ function TitleField({ value, onSave, placeholder = 'Task title...' }: {
 
   return (
     <span
-      className="text-sm font-medium cursor-default select-none truncate"
+      className="block text-sm font-medium cursor-default select-none truncate"
       onDoubleClick={startEdit}
       title={value}
     >
@@ -511,7 +512,7 @@ function TaskRow({
   return (
     <div
       className={cn(
-        'group/row flex items-center border-b border-border/25 hover:bg-accent/5 transition-colors',
+        'group/row flex w-full items-center border-b border-border/25 hover:bg-accent/5 transition-colors',
         isMain ? 'bg-background' : 'bg-background/40'
       )}
       style={{ paddingLeft: `${depth * 24}px` }}
@@ -540,192 +541,206 @@ function TaskRow({
       {/* Title */}
       <div
         className={cn(
-          'flex-1 min-w-0 flex items-center pr-2',
+          'flex-1 min-w-0 max-w-[420px] flex items-center pr-2 overflow-hidden',
           isMain ? 'py-3' : 'py-2'
         )}
       >
-        <TitleField
-          value={task.title}
-          onSave={(title) => onUpdate({ title })}
-        />
+        {/* <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild> */}
+              <div className="w-full min-w-0">
+                <TitleField
+                  value={task.title}
+                  onSave={(title) => onUpdate({ title })}
+                />
+              </div>
+            {/* </TooltipTrigger>
+            <TooltipContent side="top">
+              <span className="max-w-xs break-words text-left">{task.title}</span>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider> */}
       </div>
 
-      {/* Status column – pill for both main and subtasks */}
-      <div className="w-28 shrink-0 flex items-center justify-center px-2">
-        {isMain ? (
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border',
-              derivedStatus === 'TODO'
-                ? 'border-slate-500/40 bg-slate-500/10 dark:bg-slate-500/10 text-slate-800 dark:text-slate-200' :
-              derivedStatus === 'DONE'
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                : derivedStatus === 'IN_PROGRESS'
-                  ? 'border-sky-500/40 bg-sky-500/10 text-sky-300'
-                  : 'border-slate-500/40 bg-slate-500/10 text-slate-200'
-            )}
-          >
-            <span className={cn('size-1.5 rounded-full', derivedOpt.dot)} />
-            <span>{statusOpt(derivedStatus).label}</span>
-          </span>
-        ) : (
-          <StatusPill
-            status={task.status}
-            onUpdate={(status) => onUpdate({ status })}
+      {/* Right-side columns: Status | Priority | Assignee | Actions */}
+      <div className="ml-auto flex items-center">
+        {/* Status column – pill for both main and subtasks */}
+        <div className="w-28 shrink-0 flex items-center justify-center px-2">
+          {isMain ? (
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border',
+                derivedStatus === 'TODO'
+                  ? 'border-slate-500/40 bg-slate-500/10 dark:bg-slate-500/10 text-slate-800 dark:text-slate-200' :
+                derivedStatus === 'DONE'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                  : derivedStatus === 'IN_PROGRESS'
+                    ? 'border-sky-500/40 bg-sky-500/10 text-sky-300'
+                    : 'border-slate-500/40 bg-slate-500/10 text-slate-200'
+              )}
+            >
+              <span className={cn('size-1.5 rounded-full', derivedOpt.dot)} />
+              <span>{statusOpt(derivedStatus).label}</span>
+            </span>
+          ) : (
+            <StatusPill
+              status={task.status}
+              onUpdate={(status) => onUpdate({ status })}
+            />
+          )}
+        </div>
+
+        {/* Priority column – editable dropdown */}
+        <div className="w-24 shrink-0 flex items-center justify-center px-2">
+          <PriorityPill
+            priority={task.priority}
+            onUpdate={(priority) => onUpdate({ priority })}
           />
-        )}
-      </div>
+        </div>
 
-      {/* Priority column – editable dropdown */}
-      <div className="w-24 shrink-0 flex items-center justify-center px-2">
-        <PriorityPill
-          priority={task.priority}
-          onUpdate={(priority) => onUpdate({ priority })}
-        />
-      </div>
-
-      {/* Assignee column */}
-      <div className="w-20 shrink-0 flex items-center justify-center">
-        {isMain ? (
-          (() => {
-            const subAssignees =
-              subtasks
-                .map((s) => s.assignee)
-                .filter(
-                  (a): a is NonNullable<Task['assignee']> =>
-                    !!a && !!a.user
-                ) ?? [];
-            const uniqueAssignees: NonNullable<Task['assignee']>[] = [];
-            const seen = new Set<string>();
-            for (const a of subAssignees) {
-              if (!seen.has(a.id)) {
-                seen.add(a.id);
-                uniqueAssignees.push(a);
+        {/* Assignee column */}
+        <div className="w-20 shrink-0 flex items-center justify-center">
+          {isMain ? (
+            (() => {
+              const subAssignees =
+                subtasks
+                  .map((s) => s.assignee)
+                  .filter(
+                    (a): a is NonNullable<Task['assignee']> =>
+                      !!a && !!a.user
+                  ) ?? [];
+              const uniqueAssignees: NonNullable<Task['assignee']>[] = [];
+              const seen = new Set<string>();
+              for (const a of subAssignees) {
+                if (!seen.has(a.id)) {
+                  seen.add(a.id);
+                  uniqueAssignees.push(a);
+                }
               }
-            }
 
-            if (uniqueAssignees.length === 0) {
-              if (!task.assignee) return null;
-              const a = task.assignee;
-              const name = a.user.name || a.user.email;
+              if (uniqueAssignees.length === 0) {
+                if (!task.assignee) return null;
+                const a = task.assignee;
+                const name = a.user.name || a.user.email;
+                return (
+                  <div title={name ?? undefined} className="rounded-full">
+                    <Avatar size="sm">
+                      {a.user.image && <AvatarImage src={a.user.image} />}
+                      <AvatarFallback className="text-[10px]">
+                        {initials(a.user.name, a.user.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                );
+              }
+
+              if (uniqueAssignees.length === 1 && uniqueAssignees[0].user) {
+                const a = uniqueAssignees[0];
+                const name = a.user.name || a.user.email;
+                return (
+                  <div title={name ?? undefined} className="rounded-full">
+                    <Avatar size="sm">
+                      {a.user.image && <AvatarImage src={a.user.image} />}
+                      <AvatarFallback className="text-[10px]">
+                        {initials(a.user.name, a.user.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                );
+              }
+
+              const visible = uniqueAssignees
+                .filter((a) => !!a.user)
+                .slice(0, 3);
+              const remaining = uniqueAssignees.length - visible.length;
+
               return (
-                <div title={name ?? undefined} className="rounded-full">
-                  <Avatar size="sm">
-                    {a.user.image && <AvatarImage src={a.user.image} />}
-                    <AvatarFallback className="text-[10px]">
-                      {initials(a.user.name, a.user.email)}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
+                <AvatarGroup>
+                  {visible.map((a) => (
+                    <Avatar key={a.id} size="sm" title={a.user.name || a.user.email}>
+                      {a.user.image && <AvatarImage src={a.user.image} />}
+                      <AvatarFallback className="text-[10px]">
+                        {initials(a.user.name, a.user.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                  {remaining > 0 && (
+                    <AvatarGroupCount className="text-[10px]">
+                      +{remaining}
+                    </AvatarGroupCount>
+                  )}
+                </AvatarGroup>
               );
-            }
+            })()
+          ) : (
+            <AssigneePicker
+              assignee={task.assignee}
+              members={members}
+              onUpdate={(assigneeId) => onUpdate({ assigneeId })}
+            />
+          )}
+        </div>
 
-            if (uniqueAssignees.length === 1 && uniqueAssignees[0].user) {
-              const a = uniqueAssignees[0];
-              const name = a.user.name || a.user.email;
-              return (
-                <div title={name ?? undefined} className="rounded-full">
-                  <Avatar size="sm">
-                    {a.user.image && <AvatarImage src={a.user.image} />}
-                    <AvatarFallback className="text-[10px]">
-                      {initials(a.user.name, a.user.email)}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              );
-            }
-
-            const visible = uniqueAssignees
-              .filter((a) => !!a.user)
-              .slice(0, 3);
-            const remaining = uniqueAssignees.length - visible.length;
-
-            return (
-              <AvatarGroup>
-                {visible.map((a) => (
-                  <Avatar key={a.id} size="sm" title={a.user.name || a.user.email}>
-                    {a.user.image && <AvatarImage src={a.user.image} />}
-                    <AvatarFallback className="text-[10px]">
-                      {initials(a.user.name, a.user.email)}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-                {remaining > 0 && (
-                  <AvatarGroupCount className="text-[10px]">
-                    +{remaining}
-                  </AvatarGroupCount>
-                )}
-              </AvatarGroup>
-            );
-          })()
-        ) : (
-          <AssigneePicker
-            assignee={task.assignee}
-            members={members}
-            onUpdate={(assigneeId) => onUpdate({ assigneeId })}
-          />
-        )}
-      </div>
-
-      {/* Actions – three-dot menu (move / edit / delete) */}
-      <div className="w-16 shrink-0 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground/60 hover:text-foreground hover:bg-accent/40 transition-colors cursor-pointer"
-            >
-              <MoreHorizontal className="size-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[160px]">
-            {onMoveToBacklog && (
+        {/* Actions – three-dot menu (move / edit / delete) */}
+        <div className="w-16 shrink-0 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex size-7 items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground/60 hover:text-foreground hover:bg-accent/40 transition-colors cursor-pointer"
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[160px]">
+              {onMoveToBacklog && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMoveToBacklog();
+                  }}
+                  className="cursor-pointer"
+                >
+                  <ArrowRightLeft className="size-4 mr-2" />
+                  Move to backlog
+                </DropdownMenuItem>
+              )}
+              {onMoveToSprint && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMoveToSprint();
+                  }}
+                  className="cursor-pointer"
+                >
+                  <ArrowRightLeft className="size-4 mr-2" />
+                  Move to sprint
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
-                  onMoveToBacklog();
+                  onEdit();
                 }}
                 className="cursor-pointer"
               >
-                <ArrowRightLeft className="size-4 mr-2" />
-                Move to backlog
+                <Pencil className="size-4 mr-2" />
+                Edit task
               </DropdownMenuItem>
-            )}
-            {onMoveToSprint && (
               <DropdownMenuItem
+                variant="destructive"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onMoveToSprint();
+                  onDelete();
                 }}
                 className="cursor-pointer"
               >
-                <ArrowRightLeft className="size-4 mr-2" />
-                Move to sprint
+                <Trash2 className="size-4 mr-2" />
+                Delete
               </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="cursor-pointer"
-            >
-              <Pencil className="size-4 mr-2" />
-              Edit task
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="cursor-pointer"
-            >
-              <Trash2 className="size-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );
@@ -1090,7 +1105,7 @@ export function TaskTable({
     <>
       <div className="rounded-xl border border-border/60 bg-background/60 overflow-hidden">
         {/* Column header row – Title | Status | Priority | Assignee | Actions */}
-        <div className="flex items-center px-4 py-2 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
+        <div className="flex items-center w-full px-4 py-2 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
           <div className="flex-1 text-left">Title</div>
           <div className="w-28 text-center">Status</div>
           <div className="w-24 text-center">Priority</div>
