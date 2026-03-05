@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { BookPlus, MoreVertical, Pencil, Search, Trash2, User } from "lucide-react";
+import { BookPlus, LogOut, MoreVertical, Pencil, Search, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
+import { signOut } from "next-auth/react";
 import { AddProjectDialog } from "@/components/projects/AddProjectDialog";
 import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { EditProjectDialog } from "@/components/projects/EditProjectDialog";
@@ -28,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useDeleteProjectMutation, useProjectsQuery } from "@/queries/projects.queries";
 import { ApiError } from "@/services/http-client";
+import { handleUnauthorizedError } from "@/lib/handle-unauthorized";
 import type { Project } from "@/services/projects.service";
 
 export function ProjectsPageClient() {
@@ -74,27 +77,27 @@ export function ProjectsPageClient() {
       setDeleteDialogOpen(false);
       setDeleteProjectTarget(null);
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        toast.error("Please log in to delete projects.");
-        router.replace("/login");
-        return;
+      if (!handleUnauthorizedError(error, router)) {
+        toast.error(error instanceof Error ? error.message : "Failed to delete project.");
       }
+    }
+  };
 
-      toast.error(error instanceof Error ? error.message : "Failed to delete project.");
+  const handleLogout = async () => {
+    try {
+      await signOut({ callbackUrl: "/" });
+    } catch (error) {
+      toast.error("Failed to log out. Please try again.");
     }
   };
 
   if (projectsQuery.isError) {
-    const message =
-      projectsQuery.error instanceof ApiError && projectsQuery.error.status === 401
-        ? "Please log in to view projects."
-        : projectsQuery.error instanceof Error
-          ? projectsQuery.error.message
-          : "Failed to load projects.";
-
-    if (projectsQuery.error instanceof ApiError && projectsQuery.error.status === 401) {
-      router.replace("/login");
-    }
+    const unauthorized = handleUnauthorizedError(projectsQuery.error, router);
+    const message = unauthorized
+      ? "Please log in to view projects."
+      : projectsQuery.error instanceof Error
+        ? projectsQuery.error.message
+        : "Failed to load projects.";
 
     return (
       <div className="flex min-h-screen items-center justify-center px-6">
@@ -105,7 +108,25 @@ export function ProjectsPageClient() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/60 px-6 pt-8 md:px-12 lg:px-16">
+        <Link href="/projects" className="flex items-center gap-3">
+          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-transparent">
+            <Image src="/icon.png" alt="Runway" width={32} height={32} />
+          </div>
+          <span className="text-lg font-semibold leading-tight">Runway</span>
+        </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          className="inline-flex items-center gap-2 cursor-pointer"
+          onClick={handleLogout}
+        >
+          <LogOut className="size-4" />
+          <span>Log out</span>
+        </Button>
+      </div>
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 px-6 py-8 md:px-12 md:py-12 lg:px-16 lg:py-16">
+
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">

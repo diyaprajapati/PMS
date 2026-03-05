@@ -29,7 +29,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 function getInitials(name: string, email: string) {
@@ -54,7 +53,6 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const router = useRouter()
   const initials = getInitials(user.name, user.email)
   return (
     <SidebarMenu>
@@ -127,8 +125,7 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={async () => {
-                await signOut({ redirect: false });
-                router.replace("/login");
+                await signOut({ callbackUrl: "/" });
               }}
               className="cursor-pointer"
             >
