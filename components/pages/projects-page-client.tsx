@@ -174,16 +174,12 @@ export function ProjectsPageClient() {
               {filteredProjects.map((project: Project) => (
                 <Card
                   key={project.id}
-                  className="group flex flex-col p-6 transition-all duration-200 hover:border-primary/20 hover:shadow-md"
+                  className="group relative flex cursor-pointer flex-col p-6 transition-all duration-200 hover:border-primary/20 hover:shadow-md"
+                  onClick={() => router.push(`/sprints?project=${project.id}`)}
                 >
                   <CardHeader className="flex flex-row items-start justify-between gap-3 p-0 pb-4">
-                    <CardTitle className="wrap-break-word text-xl font-semibold leading-tight">
-                      <Link
-                        href={`/sprints?project=${project.id}`}
-                        className="cursor-pointer transition-all duration-200 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      >
-                        {project.name}
-                      </Link>
+                    <CardTitle className="wrap-break-word text-xl font-semibold leading-tight transition-all duration-200 group-hover:text-primary">
+                      {project.name}
                     </CardTitle>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -192,6 +188,7 @@ export function ProjectsPageClient() {
                           size="icon"
                           className="size-9 shrink-0 cursor-pointer opacity-70 transition-all duration-200 hover:bg-accent/80 group-hover:opacity-100"
                           aria-label="Project options"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <MoreVertical className="size-4" />
                         </Button>
