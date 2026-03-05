@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DeleteTaskDialog } from './DeleteTaskDialog';
 import { EditTaskDialog } from './EditTaskDialog';
+import { TaskDetailSheet } from './TaskDetailSheet';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
@@ -475,6 +476,7 @@ function TaskRow({
   onUpdate,
   onDelete,
   onEdit,
+  onOpenDetail,
   onMoveToBacklog,
   onMoveToSprint,
 }: {
@@ -486,6 +488,7 @@ function TaskRow({
   onUpdate: (data: Record<string, unknown>) => void;
   onDelete: () => void;
   onEdit: () => void;
+  onOpenDetail?: () => void;
   onMoveToBacklog?: () => void;
   onMoveToSprint?: () => void;
 }) {
@@ -512,6 +515,11 @@ function TaskRow({
         isMain ? 'bg-background' : 'bg-background/40'
       )}
       style={{ paddingLeft: `${depth * 24}px` }}
+      onClick={() => {
+        if (!isMain && onOpenDetail) {
+          onOpenDetail();
+        }
+      }}
     >
       {/* Expand chevron (always shown for top-level; only for subtasks with children) */}
       <div className="flex items-center justify-center size-8 shrink-0">
@@ -752,6 +760,8 @@ export function TaskTable({
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [editTarget, setEditTarget] = useState<Task | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   // Keep a stable ref to onLoad so it never causes fetchTasks to re-run
   const onLoadRef = useRef(onLoad);
@@ -1027,6 +1037,7 @@ export function TaskTable({
           onUpdate={(data) => handleUpdate(task.id, data)}
           onDelete={() => setDeleteTarget(task)}
           onEdit={() => setEditTarget(task)}
+          onOpenDetail={depth > 0 ? () => { setDetailTaskId(task.id); setDetailOpen(true); } : undefined}
           onMoveToBacklog={
             isSprintView && depth === 0 ? () => handleMoveToBacklog(task) : undefined
           }
@@ -1127,6 +1138,19 @@ export function TaskTable({
           if (!open) setEditTarget(null);
         }}
         onSuccess={() => {
+          fetchTasks();
+          onRefresh?.();
+        }}
+      />
+
+      <TaskDetailSheet
+        taskId={detailTaskId}
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setDetailTaskId(null);
+        }}
+        onUpdated={() => {
           fetchTasks();
           onRefresh?.();
         }}
