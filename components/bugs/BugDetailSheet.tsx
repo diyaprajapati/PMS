@@ -30,6 +30,9 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Pencil } from "lucide-react";
 
 type BugDetailSheetProps = {
   bugId: string | null;
@@ -81,6 +84,10 @@ function renderCommentText(content: string) {
 export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProps) {
   const { projectId } = useProjectFromSearchParams();
   const [comment, setComment] = useState("");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editDescription, setEditDescription] = useState("");
 
   const { data: bug, isLoading } = useBugDetailQuery(projectId, bugId);
   const { data: members = [] } = useProjectMembersQuery(projectId);
@@ -101,6 +108,8 @@ export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProp
     status?: BugStatus;
     priority?: TaskPriority;
     assigneeId?: string | null;
+    title?: string;
+    description?: string | null;
   }) => {
     try {
       if (!bugId) return;
@@ -114,7 +123,58 @@ export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProp
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl flex flex-col p-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/50">
-          <SheetTitle className="text-xl font-display">{bug ? bug.title : "Bug details"}</SheetTitle>
+          <div className="flex items-start justify-between gap-3">
+            {isEditingTitle ? (
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="text-xl font-display h-auto py-2"
+                  disabled={updateMutation.isPending}
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      await patchBug({ title: editTitle });
+                      setIsEditingTitle(false);
+                    }}
+                    disabled={updateMutation.isPending || !editTitle.trim()}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditingTitle(false);
+                      setEditTitle(bug?.title ?? "");
+                    }}
+                    disabled={updateMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <SheetTitle className="text-xl font-display">{bug ? bug.title : "Bug details"}</SheetTitle>
+                {bug && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8 shrink-0"
+                    onClick={() => {
+                      setEditTitle(bug.title);
+                      setIsEditingTitle(true);
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
           <SheetDescription className="text-xs font-medium font-mono text-muted-foreground/80">
             {bug ? `BUG-${bug.bugNumber}` : "Loading bug details"}
           </SheetDescription>
@@ -130,10 +190,59 @@ export function BugDetailSheet({ bugId, open, onOpenChange }: BugDetailSheetProp
           <div className="flex-1 overflow-y-auto px-6 py-4">
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wide font-medium text-muted-foreground/70">Description</Label>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 bg-muted/30 rounded-lg p-3 border border-border/40">
-                  {bug.description || "No description provided."}
-                </p>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wide font-medium text-muted-foreground/70">Description</Label>
+                  {!isEditingDescription && bug && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8"
+                      onClick={() => {
+                        setEditDescription(bug.description || "");
+                        setIsEditingDescription(true);
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  )}
+                </div>
+                {isEditingDescription ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      rows={4}
+                      disabled={updateMutation.isPending}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          await patchBug({ description: editDescription.trim() || null });
+                          setIsEditingDescription(false);
+                        }}
+                        disabled={updateMutation.isPending}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditingDescription(false);
+                          setEditDescription(bug.description || "");
+                        }}
+                        disabled={updateMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 bg-muted/30 rounded-lg p-3 border border-border/40">
+                    {bug.description || "No description provided."}
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
