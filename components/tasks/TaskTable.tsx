@@ -800,7 +800,7 @@ export function TaskTable({
       assigneeId: filterAssigneeId ?? undefined,
       priority: filterPriority ?? undefined,
       status: filterStatus ?? undefined,
-      parentTaskId: null,
+      parentTaskId: 'null',
       includeSubtasks: true,
     }),
     [sprintId, filterAssigneeId, filterPriority, filterStatus],
