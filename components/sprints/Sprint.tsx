@@ -29,6 +29,9 @@ import { TaskTable } from '@/components/tasks/TaskTable';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import { cn } from '@/lib/utils';
 import type { Task, TaskPriority, TaskStatus } from '@/types/task';
+import { useSprintsQuery, useDeleteSprintMutation, useUpdateSprintMutation } from '@/queries/sprints.queries';
+import { useMembersQuery } from '@/queries/members.queries';
+import type { SprintStatus } from '@/types/task';
 
 const STATUS_FILTER_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: 'TODO', label: 'To Do' },
@@ -51,6 +54,34 @@ const ALL_FILTER_VALUE = '__all__';
 function getMemberLabel(m: { name: string | null; email: string }): string {
   const name = m.name?.trim();
   return name || m.email || 'Unnamed';
+}
+
+const statusBadgeStyles: Record<SprintStatus, string> = {
+  NOT_STARTED:
+    'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-600',
+  ACTIVE:
+    'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 border-blue-300 dark:border-blue-700',
+  COMPLETED:
+    'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 border-green-300 dark:border-green-700',
+};
+
+const statusLabels: Record<SprintStatus, string> = {
+  NOT_STARTED: 'Not Started',
+  ACTIVE: 'Active',
+  COMPLETED: 'Completed',
+};
+
+function SprintInlineBadge({ status }: { status: SprintStatus }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
+        statusBadgeStyles[status]
+      )}
+    >
+      {statusLabels[status]}
+    </span>
+  );
 }
 
 type SprintSelectorProps = {
@@ -112,12 +143,13 @@ type Member = { id: string; name: string | null; email: string };
 export default function Sprint() {
   const { projectId } = useProjectFromSearchParams();
 
-  const [sprints, setSprints] = useState<SprintType[]>([]);
+  const { data: sprints = [], isLoading: sprintsLoading } = useSprintsQuery(projectId);
+  const { data: members = [] } = useMembersQuery(projectId);
+  const deleteSprintMutation = useDeleteSprintMutation(projectId);
+  const updateSprintMutation = useUpdateSprintMutation(projectId);
+
   const [selectedSprint, setSelectedSprint] = useState<SprintType | null>(null);
-  const [sprintsLoading, setSprintsLoading] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
-  const [members, setMembers] = useState<Member[]>([]);
 
   const [filterAssigneeId, setFilterAssigneeId] = useState<string | null>(null);
   const [filterPriority, setFilterPriority] = useState<TaskPriority | null>(null);
@@ -125,82 +157,31 @@ export default function Sprint() {
 
   const [editSprint, setEditSprint] = useState<SprintType | null>(null);
   const [deleteSprint, setDeleteSprint] = useState<SprintType | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
-  const fetchSprints = useCallback(async () => {
-    if (!projectId) return;
-    setSprintsLoading(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/sprints`, { credentials: 'include' });
-      if (!res.ok) throw new Error();
-      const data: SprintType[] = await res.json();
-      setSprints(data);
-
-      const active = data.find((s) => s.status === 'ACTIVE');
+  // Auto-select sprint when sprints load or change
+  useEffect(() => {
+    if (sprints.length > 0) {
       setSelectedSprint((prev) => {
         if (prev) {
-          const updated = data.find((s) => s.id === prev.id);
-          if (updated) return updated;
+          const updated = sprints.find((s) => s.id === prev.id);
+          if (updated) return updated as SprintType;
         }
-        return active ?? data[0] ?? null;
+        const active = sprints.find((s) => s.status === 'ACTIVE');
+        return (active ?? sprints[0]) as SprintType;
       });
-    } catch {
-      toast.error('Failed to load sprints');
-    } finally {
-      setSprintsLoading(false);
-    }
-  }, [projectId]);
-
-  const fetchMembers = useCallback(async () => {
-    if (!projectId) return;
-    try {
-      const res = await fetch(`/api/projects/${projectId}/members`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setMembers(data.map((m: { id: string; name: string | null; email: string }) => ({ id: m.id, name: m.name, email: m.email })));
-      }
-    } catch { /* silent */ }
-  }, [projectId]);
-
-  useEffect(() => {
-    if (projectId) {
-      setSprints([]);
+    } else {
       setSelectedSprint(null);
-      void fetchSprints();
-      void fetchMembers();
     }
-  }, [projectId, fetchSprints, fetchMembers]);
-
-  const handleSprintCreated = () => {
-    void fetchSprints();
-  };
-
-  const handleEditSuccess = () => {
-    void fetchSprints();
-  };
+  }, [sprints]);
 
   const handleDeleteConfirm = async (sprint: SprintType) => {
-    if (!projectId) return;
-    setDeleting(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/sprints/${sprint.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || 'Failed to delete sprint');
-      }
-
+      await deleteSprintMutation.mutateAsync(sprint.id);
       toast.success('Sprint deleted successfully');
       setDeleteSprint(null);
       setSelectedSprint((prev) => (prev?.id === sprint.id ? null : prev));
-      void fetchSprints();
     } catch (err: any) {
       toast.error(err?.message || 'Failed to delete sprint');
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -256,7 +237,30 @@ export default function Sprint() {
           {selectedSprint && (
             <>
               <Separator orientation="vertical" className="h-5" />
-              <SprintStatusBadge status={selectedSprint.status} />
+              <Select
+                value={selectedSprint.status}
+                onValueChange={async (value) => {
+                  try {
+                    await updateSprintMutation.mutateAsync({
+                      sprintId: selectedSprint.id,
+                      payload: { status: value as SprintStatus },
+                    });
+                    toast.success('Sprint status updated');
+                  } catch (err: any) {
+                    toast.error(err?.message || 'Failed to update sprint status');
+                  }
+                }}
+                disabled={updateSprintMutation.isPending}
+              >
+                <SelectTrigger className="h-7 w-auto gap-1.5 border-none bg-transparent px-2 py-0 hover:bg-accent/40 rounded-md text-xs font-medium focus:ring-0 focus:ring-offset-0 [&>svg]:text-muted-foreground">
+                  <SprintInlineBadge status={selectedSprint.status} />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="NOT_STARTED">Not Started</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                </SelectContent>
+              </Select>
             </>
           )}
           {selectedSprint && (
@@ -271,7 +275,7 @@ export default function Sprint() {
                 {totalHours > 0 && (
                   <>
                     <span className="h-4 w-px bg-border/60" />
-                    <span className="tabular-nums">{totalHours}h total</span>
+                    <span className="tabular-nums">{totalHours.toFixed(2)}h total</span>
                   </>
                 )}
               </div>
@@ -280,7 +284,7 @@ export default function Sprint() {
         </div>
 
         <div className="flex items-center gap-2">
-          <AddSprintDialog onSuccess={handleSprintCreated} />
+          <AddSprintDialog />
           {selectedSprint && (
             <>
               <Button
@@ -408,7 +412,6 @@ export default function Sprint() {
         onOpenChange={(open) => {
           if (!open) setEditSprint(null);
         }}
-        onSuccess={handleEditSuccess}
       />
 
       <DeleteSprintDialog
@@ -418,7 +421,7 @@ export default function Sprint() {
           if (!open) setDeleteSprint(null);
         }}
         onConfirm={handleDeleteConfirm}
-        deleting={deleting}
+        deleting={deleteSprintMutation.isPending}
       />
     </div>
   );

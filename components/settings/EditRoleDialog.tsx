@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
+import { useUpdateMemberRoleMutation } from '@/queries/members.queries'
 import type { TeamMember } from './TeamMembers'
 
 type EditRoleDialogProps = {
@@ -23,7 +24,6 @@ type EditRoleDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
-  onRoleUpdated?: () => void;
 };
 
 export default function EditRoleDialog({
@@ -31,10 +31,10 @@ export default function EditRoleDialog({
   open,
   onOpenChange,
   projectId,
-  onRoleUpdated,
 }: EditRoleDialogProps) {
   const [role, setRole] = useState<'ADMIN' | 'DEVELOPER' | 'CLIENT'>('CLIENT');
-  const [loading, setLoading] = useState(false);
+
+  const mutation = useUpdateMemberRoleMutation(projectId);
 
   useEffect(() => {
     if (member) {
@@ -53,32 +53,22 @@ export default function EditRoleDialog({
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/members/${member.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ role }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || 'Failed to update member role');
-        return;
+    mutation.mutate(
+      { memberId: member.id, payload: { role } },
+      {
+        onSuccess: () => {
+          toast.success(`Member role updated to ${role.charAt(0) + role.slice(1).toLowerCase()}`);
+          onOpenChange(false);
+        },
+        onError: (error) => {
+          console.error('Error updating member role:', error);
+          toast.error('Failed to update member role');
+        },
       }
-
-      toast.success(`Member role updated to ${role.charAt(0) + role.slice(1).toLowerCase()}`);
-      onOpenChange(false);
-      onRoleUpdated?.(); // Refresh the members list
-    } catch (error) {
-      console.error('Error updating member role:', error);
-      toast.error('Failed to update member role');
-    } finally {
-      setLoading(false);
-    }
+    );
   };
+
+  const loading = mutation.isPending;
 
   const getInitials = (name: string | null, email: string) => {
     if (name) {

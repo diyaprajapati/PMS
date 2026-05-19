@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/http-client";
+import { ApiClient } from "@/lib/api-client";
 
 export type Project = {
   id: string;
@@ -17,31 +17,21 @@ export type UpsertProjectPayload = {
 };
 
 export async function getProjects() {
-  return apiClient<Project[]>("/api/projects");
+  return ApiClient.get<Project[]>("/api/projects");
 }
 
 export async function getProjectById(projectId: string) {
-  return apiClient<Project>(`/api/projects/${projectId}`);
+  return ApiClient.get<Project>(`/api/projects/${projectId}`);
 }
 
 export async function deleteProject(projectId: string) {
-  return apiClient<{ message?: string }>(`/api/projects/${projectId}`, {
-    method: "DELETE",
-  });
+  return ApiClient.delete<{ message?: string }>(`/api/projects/${projectId}`);
 }
 
 export async function createProject(payload: UpsertProjectPayload) {
-  return apiClient<Project>("/api/projects", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return ApiClient.post<Project>("/api/projects", payload);
 }
 
 export async function updateProject(projectId: string, payload: UpsertProjectPayload) {
-  return apiClient<Project>(`/api/projects/${projectId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return ApiClient.patch<Project>(`/api/projects/${projectId}`, payload);
 }

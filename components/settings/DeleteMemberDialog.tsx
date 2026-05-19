@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,6 +13,7 @@ import {
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import { AlertTriangle } from 'lucide-react'
+import { useDeleteMemberMutation } from '@/queries/members.queries'
 import type { TeamMember } from './TeamMembers'
 
 type DeleteMemberDialogProps = {
@@ -21,7 +21,6 @@ type DeleteMemberDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
-  onMemberDeleted?: () => void;
 };
 
 export default function DeleteMemberDialog({
@@ -29,36 +28,25 @@ export default function DeleteMemberDialog({
   open,
   onOpenChange,
   projectId,
-  onMemberDeleted,
 }: DeleteMemberDialogProps) {
-  const [loading, setLoading] = useState(false);
+  const mutation = useDeleteMemberMutation(projectId);
 
   const handleDelete = async () => {
     if (!member || !projectId) return;
 
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/members/${member.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || 'Failed to remove member');
-        return;
-      }
-
-      toast.success(`${member.email} has been removed from the project`);
-      onOpenChange(false);
-      onMemberDeleted?.(); // Refresh the members list
-    } catch (error) {
-      console.error('Error deleting member:', error);
-      toast.error('Failed to remove member');
-    } finally {
-      setLoading(false);
-    }
+    mutation.mutate(member.id, {
+      onSuccess: () => {
+        toast.success(`${member.email} has been removed from the project`);
+        onOpenChange(false);
+      },
+      onError: (error) => {
+        console.error('Error deleting member:', error);
+        toast.error('Failed to remove member');
+      },
+    });
   };
+
+  const loading = mutation.isPending;
 
   const getInitials = (name: string | null, email: string) => {
     if (name) {

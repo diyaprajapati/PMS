@@ -24,46 +24,16 @@ import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-para
 import { EditSprintDialog } from './EditSprintDialog';
 import { DeleteSprintDialog, type Sprint } from './DeleteSprintDialog';
 import { SprintStatusBadge } from './SprintStatusBadge';
+import { useSprintsQuery, useDeleteSprintMutation } from '@/queries/sprints.queries';
 
 const tableHeaderRowClass = "bg-muted hover:bg-muted font-semibold";
 
 export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
   const { projectId } = useProjectFromSearchParams();
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: sprints = [], isLoading: loading } = useSprintsQuery(projectId);
+  const deleteSprintMutation = useDeleteSprintMutation(projectId);
   const [editSprint, setEditSprint] = useState<Sprint | null>(null);
   const [deleteSprint, setDeleteSprint] = useState<Sprint | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const fetchSprints = async () => {
-    if (!projectId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/projects/${projectId}/sprints`, {
-        credentials: 'include',
-      });
-      
-      if (!res.ok) {
-        throw new Error('Failed to fetch sprints');
-      }
-      
-      const data = await res.json();
-      setSprints(data);
-    } catch (err) {
-      toast.error('Failed to load sprints');
-      console.error('Error fetching sprints:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSprints();
-  }, [projectId]);
 
   const handleEdit = (sprint: Sprint) => {
     setEditSprint(sprint);
@@ -74,34 +44,14 @@ export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
   };
 
   const handleDeleteConfirm = async (sprint: Sprint) => {
-    if (!projectId) return;
-
-    setDeleting(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/sprints/${sprint.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || 'Failed to delete sprint');
-      }
-
+      await deleteSprintMutation.mutateAsync(sprint.id);
       toast.success('Sprint deleted successfully');
       setDeleteSprint(null);
-      fetchSprints();
       onRefresh?.();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete sprint');
-    } finally {
-      setDeleting(false);
     }
-  };
-
-  const handleEditSuccess = () => {
-    fetchSprints();
-    onRefresh?.();
   };
 
   if (loading) {
@@ -157,15 +107,16 @@ export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
         <EditSprintDialog
           sprint={editSprint}
           open={!!editSprint}
-          onOpenChange={(open) => !open && setEditSprint(null)}
-          onSuccess={handleEditSuccess}
+          onOpenChange={(open) => {
+            if (!open) setEditSprint(null);
+          }}
         />
         <DeleteSprintDialog
           sprint={deleteSprint}
           open={!!deleteSprint}
           onOpenChange={(open) => !open && setDeleteSprint(null)}
           onConfirm={handleDeleteConfirm}
-          deleting={deleting}
+          deleting={deleteSprintMutation.isPending}
         />
       </>
     );
@@ -230,16 +181,19 @@ export function SprintTable({ onRefresh }: { onRefresh?: () => void }) {
       <EditSprintDialog
         sprint={editSprint}
         open={!!editSprint}
-        onOpenChange={(open) => !open && setEditSprint(null)}
-        onSuccess={handleEditSuccess}
+        onOpenChange={(open) => {
+          if (!open) setEditSprint(null);
+        }}
       />
 
       <DeleteSprintDialog
         sprint={deleteSprint}
         open={!!deleteSprint}
-        onOpenChange={(open) => !open && setDeleteSprint(null)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteSprint(null);
+        }}
         onConfirm={handleDeleteConfirm}
-        deleting={deleting}
+        deleting={deleteSprintMutation.isPending}
       />
     </>
   );

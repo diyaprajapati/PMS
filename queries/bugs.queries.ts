@@ -2,16 +2,18 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  createBug,
-  createBugComment,
-  deleteBug,
-  getBugById,
   getBugs,
+  getBugById,
+  createBug,
+  updateBug,
+  deleteBug,
+  createBugComment,
   getProjectMembers,
   type CreateBugPayload,
   type UpdateBugPayload,
-  updateBug,
 } from "@/services/bugs.service";
+import type { Bug, BugStatus } from "@/types/bug";
+import type { TaskPriority } from "@/types/task";
 
 export const bugQueryKeys = {
   all: (projectId: string) => ["bugs", projectId] as const,
@@ -24,7 +26,6 @@ export function useBugsQuery(projectId: string | null) {
     queryKey: projectId ? bugQueryKeys.all(projectId) : ["bugs", "no-project"],
     queryFn: () => getBugs(projectId!),
     enabled: !!projectId,
-    staleTime: 30_000, // 30s – avoid refetch on every mount when navigating back
   });
 }
 
@@ -41,7 +42,7 @@ export function useProjectMembersQuery(projectId: string | null) {
     queryKey: projectId ? bugQueryKeys.members(projectId) : ["project-members", "no-project"],
     queryFn: () => getProjectMembers(projectId!),
     enabled: !!projectId,
-    staleTime: 60_000, // 1 min – members change rarely; speeds up bugs/sprints/backlog
+    staleTime: 60_000,
   });
 }
 
@@ -50,9 +51,42 @@ export function useCreateBugMutation(projectId: string | null) {
 
   return useMutation({
     mutationFn: (payload: CreateBugPayload) => createBug(projectId!, payload),
-    onSuccess: () => {
+    onMutate: async (payload) => {
       if (!projectId) return;
-      void queryClient.invalidateQueries({ queryKey: bugQueryKeys.all(projectId) });
+      const key = bugQueryKeys.all(projectId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Bug[]>(key);
+
+      queryClient.setQueryData<Bug[]>(key, (old) => {
+        if (!old) return old;
+        const optimistic: Bug = {
+          id: `optimistic-${Date.now()}`,
+          bugNumber: old.length > 0 ? Math.max(...old.map((b) => b.bugNumber)) + 1 : 1,
+          title: payload.title,
+          description: payload.description ?? null,
+          priority: payload.priority ?? "P3",
+          status: "NOT_STARTED",
+          projectId: projectId!,
+          assigneeId: payload.assigneeId ?? null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          assignee: null,
+          comments: [],
+        };
+        return [optimistic, ...old];
+      });
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous && projectId) {
+        queryClient.setQueryData(bugQueryKeys.all(projectId), context.previous);
+      }
+    },
+    onSettled: () => {
+      if (projectId) {
+        void queryClient.invalidateQueries({ queryKey: bugQueryKeys.all(projectId) });
+      }
     },
   });
 }
@@ -63,10 +97,29 @@ export function useUpdateBugMutation(projectId: string | null) {
   return useMutation({
     mutationFn: ({ bugId, payload }: { bugId: string; payload: UpdateBugPayload }) =>
       updateBug(projectId!, bugId, payload),
-    onSuccess: (_, variables) => {
+    onMutate: async ({ bugId, payload }) => {
       if (!projectId) return;
-      void queryClient.invalidateQueries({ queryKey: bugQueryKeys.all(projectId) });
-      if (variables.bugId) {
+      const key = bugQueryKeys.all(projectId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Bug[]>(key);
+
+      queryClient.setQueryData<Bug[]>(key, (old) => {
+        if (!old) return old;
+        return old.map((b) => (b.id === bugId ? { ...b, ...payload } : b));
+      });
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous && projectId) {
+        queryClient.setQueryData(bugQueryKeys.all(projectId), context.previous);
+      }
+    },
+    onSettled: (_data, _err, variables) => {
+      if (projectId) {
+        void queryClient.invalidateQueries({ queryKey: bugQueryKeys.all(projectId) });
+      }
+      if (projectId && variables?.bugId) {
         void queryClient.invalidateQueries({
           queryKey: bugQueryKeys.detail(projectId, variables.bugId),
         });
@@ -80,10 +133,28 @@ export function useDeleteBugMutation(projectId: string | null) {
 
   return useMutation({
     mutationFn: (bugId: string) => deleteBug(projectId!, bugId),
-    onSuccess: (_data, bugId) => {
+    onMutate: async (bugId) => {
       if (!projectId) return;
-      void queryClient.invalidateQueries({ queryKey: bugQueryKeys.all(projectId) });
-      void queryClient.invalidateQueries({ queryKey: bugQueryKeys.detail(projectId, bugId) });
+      const key = bugQueryKeys.all(projectId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Bug[]>(key);
+
+      queryClient.setQueryData<Bug[]>(key, (old) => {
+        if (!old) return old;
+        return old.filter((b) => b.id !== bugId);
+      });
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous && projectId) {
+        queryClient.setQueryData(bugQueryKeys.all(projectId), context.previous);
+      }
+    },
+    onSettled: () => {
+      if (projectId) {
+        void queryClient.invalidateQueries({ queryKey: bugQueryKeys.all(projectId) });
+      }
     },
   });
 }

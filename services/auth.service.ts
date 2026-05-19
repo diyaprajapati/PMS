@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/http-client";
+import { ApiClient } from "@/lib/api-client";
 
 export type AuthUser = {
   id: string;
@@ -14,14 +14,10 @@ export type RegisterPayload = {
 };
 
 export async function registerUser(payload: RegisterPayload) {
-  return apiClient<{ message: string; user: AuthUser }>("/api/auth/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return ApiClient.post<{ message: string; user: AuthUser }>("/api/auth/register", payload);
 }
 
 export async function getCurrentUser() {
-  const result = await apiClient<{ user: AuthUser }>("/api/auth/me");
+  const result = await ApiClient.get<{ user: AuthUser }>("/api/auth/me");
   return result.user;
 }

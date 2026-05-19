@@ -1,14 +1,15 @@
-import { apiClient } from "@/services/http-client";
+import { ApiClient } from "@/lib/api-client";
+import type { SprintStatus } from "@/types/task";
 
 export type Sprint = {
   id: string;
   title: string;
-  status: string;
+  status: SprintStatus;
   startDate: string | null;
   endDate: string | null;
   projectId: string;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type CreateSprintPayload = {
@@ -20,37 +21,27 @@ export type CreateSprintPayload = {
 
 export type UpdateSprintPayload = {
   title?: string;
-  status?: string;
+  status?: SprintStatus;
   startDate?: Date | null;
   endDate?: Date | null;
 };
 
 export async function getSprints(projectId: string) {
-  return apiClient<Sprint[]>(`/api/projects/${projectId}/sprints`);
+  return ApiClient.get<Sprint[]>(`/api/projects/${projectId}/sprints`);
 }
 
 export async function getSprintById(projectId: string, sprintId: string) {
-  return apiClient<Sprint>(`/api/projects/${projectId}/sprints/${sprintId}`);
+  return ApiClient.get<Sprint>(`/api/projects/${projectId}/sprints/${sprintId}`);
 }
 
 export async function createSprint(projectId: string, payload: CreateSprintPayload) {
-  return apiClient<Sprint>(`/api/projects/${projectId}/sprints`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return ApiClient.post<Sprint>(`/api/projects/${projectId}/sprints`, payload);
 }
 
 export async function updateSprint(projectId: string, sprintId: string, payload: UpdateSprintPayload) {
-  return apiClient<Sprint>(`/api/projects/${projectId}/sprints/${sprintId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  return ApiClient.patch<Sprint>(`/api/projects/${projectId}/sprints/${sprintId}`, payload);
 }
 
 export async function deleteSprint(projectId: string, sprintId: string) {
-  return apiClient<{ message?: string }>(`/api/projects/${projectId}/sprints/${sprintId}`, {
-    method: "DELETE",
-  });
+  return ApiClient.delete<{ message?: string }>(`/api/projects/${projectId}/sprints/${sprintId}`);
 }

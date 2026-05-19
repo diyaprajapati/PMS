@@ -25,7 +25,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import { getSprints, createSprint, type Sprint } from '@/services/sprints.service';
-import { ApiError } from '@/services/http-client';
+import { ApiError } from '@/lib/api-client';
+import { useSprintsQuery, useCreateSprintMutation } from '@/queries/sprints.queries';
 
 export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
   const { projectId } = useProjectFromSearchParams();
@@ -36,8 +37,8 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
   const [titleError, setTitleError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [transferUnfinishedTasks, setTransferUnfinishedTasks] = useState(false);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [loadingSprints, setLoadingSprints] = useState(false);
+  const { data: sprints, isLoading: loadingSprints } = useSprintsQuery(projectId);
+  const createSprintMutation = useCreateSprintMutation(projectId);
 
   const resetForm = () => {
     setTitle('');
@@ -51,17 +52,6 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
     if (!next) resetForm();
     setOpen(next);
   };
-
-  // Fetch sprints when dialog opens
-  useEffect(() => {
-    if (open && projectId) {
-      setLoadingSprints(true);
-      getSprints(projectId)
-        .then((data) => setSprints(data))
-        .catch(() => setSprints([]))
-        .finally(() => setLoadingSprints(false));
-    }
-  }, [open, projectId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,9 +73,8 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
       return;
     }
 
-    setLoading(true);
     try {
-      await createSprint(projectId, {
+      await createSprintMutation.mutateAsync({
         title: trimmedTitle,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
@@ -101,8 +90,6 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
       } else {
         toast.error('Something went wrong. Please try again.');
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -189,7 +176,7 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
                 </PopoverContent>
               </Popover>
             </Field>
-            {!loadingSprints && sprints.length > 0 && (
+            {!loadingSprints && sprints && sprints.length > 0 && (
               <Field>
                 <div className="flex items-center space-x-2 py-2">
                   <Checkbox
@@ -211,8 +198,8 @@ export function AddSprintDialog({ onSuccess }: { onSuccess?: () => void }) {
             <DialogClose asChild>
               <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <Button type="submit" className='cursor-pointer hover:text-white transition-all duration-200 ease-in-out' disabled={loading}>
-              {loading ? 'Creating...' : 'Add Sprint'}
+            <Button type="submit" className='cursor-pointer hover:text-white transition-all duration-200 ease-in-out' disabled={createSprintMutation.isPending}>
+              {createSprintMutation.isPending ? 'Creating...' : 'Add Sprint'}
             </Button>
           </DialogFooter>
         </form>

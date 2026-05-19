@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import type { SprintStatus } from '@/types/task';
+import { useUpdateSprintMutation } from '@/queries/sprints.queries';
 
 type Sprint = {
   id: string;
@@ -50,7 +51,7 @@ export function EditSprintDialog({
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [status, setStatus] = useState<SprintStatus>('NOT_STARTED');
   const [titleError, setTitleError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const updateSprintMutation = useUpdateSprintMutation(projectId);
 
   useEffect(() => {
     if (sprint) {
@@ -63,7 +64,7 @@ export function EditSprintDialog({
   }, [sprint, open]);
 
   const handleClose = () => {
-    if (!loading) onOpenChange(false);
+    if (!updateSprintMutation.isPending) onOpenChange(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -83,35 +84,22 @@ export function EditSprintDialog({
       return;
     }
 
-    setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/sprints/${sprint.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+      await updateSprintMutation.mutateAsync({
+        sprintId: sprint.id,
+        payload: {
           title: trimmedTitle,
           startDate: startDate || null,
           endDate: endDate || null,
-          status: status,
-        }),
+          status,
+        },
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        const message = data?.error ?? 'Failed to update sprint.';
-        toast.error(message);
-        if (data?.field === 'title') setTitleError(data.message ?? message);
-        return;
-      }
 
       toast.success('Sprint updated successfully');
       handleClose();
       onSuccess?.();
-    } catch {
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Something went wrong. Please try again.');
     }
   };
 
@@ -209,11 +197,11 @@ export function EditSprintDialog({
             </Field>
           </FieldGroup>
           <DialogFooter className='flex justify-end mt-4'>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={updateSprintMutation.isPending}>
               Cancel
             </Button>
-            <Button type="submit" className='cursor-pointer hover:text-white transition-all duration-200 ease-in-out' disabled={loading}>
-              {loading ? 'Updating...' : 'Update Sprint'}
+            <Button type="submit" className='cursor-pointer hover:text-white transition-all duration-200 ease-in-out' disabled={updateSprintMutation.isPending}>
+              {updateSprintMutation.isPending ? 'Updating...' : 'Update Sprint'}
             </Button>
           </DialogFooter>
         </form>

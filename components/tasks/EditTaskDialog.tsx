@@ -18,19 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from 'sonner';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import type { Task, TaskStatus, TaskPriority } from '@/types/task';
-
-type Sprint = {
-  id: string;
-  title: string;
-};
-
-type ProjectMember = {
-  id: string;
-  userId: string;
-  email: string;
-  name: string | null;
-  role: string;
-};
+import { useSprintsQuery } from '@/queries/sprints.queries';
+import { useMembersQuery } from '@/queries/members.queries';
+import { useUpdateTaskMutation } from '@/queries/tasks.queries';
+import type { UpdateTaskPayload } from '@/services/tasks.service';
 
 type EditTaskDialogProps = {
   task: Task | null;
@@ -55,10 +46,10 @@ export function EditTaskDialog({
   const [sprintId, setSprintId] = useState<string | null>(null);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
+
+  const { data: sprints, isLoading: sprintsLoading } = useSprintsQuery(projectId);
+  const { data: members, isLoading: membersLoading } = useMembersQuery(projectId);
+  const updateTaskMutation = useUpdateTaskMutation(projectId);
 
   useEffect(() => {
     if (task) {
@@ -74,40 +65,8 @@ export function EditTaskDialog({
     }
   }, [task, open]);
 
-  useEffect(() => {
-    if (open && projectId) {
-      fetchSprintsAndMembers();
-    }
-  }, [open, projectId]);
-
-  const fetchSprintsAndMembers = async () => {
-    if (!projectId) return;
-
-    setLoadingData(true);
-    try {
-      const [sprintsRes, membersRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}/sprints`, { credentials: 'include' }),
-        fetch(`/api/projects/${projectId}/members`, { credentials: 'include' }),
-      ]);
-
-      if (sprintsRes.ok) {
-        const sprintsData = await sprintsRes.json();
-        setSprints(sprintsData);
-      }
-
-      if (membersRes.ok) {
-        const membersData = await membersRes.json();
-        setMembers(membersData);
-      }
-    } catch (err) {
-      console.error('Error fetching data:', err);
-    } finally {
-      setLoadingData(false);
-    }
-  };
-
   const handleClose = () => {
-    if (!loading) onOpenChange(false);
+    if (!updateTaskMutation.isPending) onOpenChange(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -128,7 +87,7 @@ export function EditTaskDialog({
       return;
     }
 
-    const payload: Record<string, unknown> = {
+    const payload: UpdateTaskPayload = {
       title: trimmedTitle,
       description: description.trim() || null,
       acceptanceCriteria: acceptanceCriteria.trim() || null,
@@ -147,30 +106,17 @@ export function EditTaskDialog({
       payload.status = status;
     }
 
-    setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
+      await updateTaskMutation.mutateAsync({
+        taskId: task.id,
+        payload,
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        const message = data?.error ?? 'Failed to update task.';
-        toast.error(message);
-        if (data?.field === 'title') setTitleError(data.message ?? message);
-        return;
-      }
 
       toast.success('Task updated successfully');
       handleClose();
       onSuccess?.();
-    } catch {
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Something went wrong. Please try again.');
     }
   };
 
@@ -218,22 +164,22 @@ export function EditTaskDialog({
               </Select>
             </Field>
 
-          <Field>
-            <Label htmlFor="edit-task-priority">Priority</Label>
-            <Select value={priority} onValueChange={(value) => setPriority(value as TaskPriority)}>
-              <SelectTrigger id="edit-task-priority">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="P0">P0 – Critical</SelectItem>
-                <SelectItem value="P1">P1 – High</SelectItem>
-                <SelectItem value="P2">P2 – Medium High</SelectItem>
-                <SelectItem value="P3">P3 – Medium</SelectItem>
-                <SelectItem value="P4">P4 – Low</SelectItem>
-                <SelectItem value="P5">P5 – Lowest</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+            <Field>
+              <Label htmlFor="edit-task-priority">Priority</Label>
+              <Select value={priority} onValueChange={(value) => setPriority(value as TaskPriority)}>
+                <SelectTrigger id="edit-task-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="P0">P0 – Critical</SelectItem>
+                  <SelectItem value="P1">P1 – High</SelectItem>
+                  <SelectItem value="P2">P2 – Medium High</SelectItem>
+                  <SelectItem value="P3">P3 – Medium</SelectItem>
+                  <SelectItem value="P4">P4 – Low</SelectItem>
+                  <SelectItem value="P5">P5 – Lowest</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
 
             <Field>
               <Label htmlFor="edit-task-description">Description</Label>
@@ -281,11 +227,11 @@ export function EditTaskDialog({
                 disabled={!!task.parentTaskId}
               >
                 <SelectTrigger id="edit-task-sprint">
-                  <SelectValue placeholder={loadingData ? "Loading..." : "Select sprint"} />
+                  <SelectValue placeholder={sprintsLoading || membersLoading ? "Loading..." : "Select sprint"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
-                  {sprints.map((sprint) => (
+                  {sprints?.map((sprint) => (
                     <SelectItem key={sprint.id} value={sprint.id}>
                       {sprint.title}
                     </SelectItem>
@@ -298,11 +244,11 @@ export function EditTaskDialog({
               <Label htmlFor="edit-task-assignee">Assignee</Label>
               <Select value={assigneeId || "unassigned"} onValueChange={(value) => setAssigneeId(value === "unassigned" ? null : value)}>
                 <SelectTrigger id="edit-task-assignee">
-                  <SelectValue placeholder={loadingData ? "Loading..." : "Select assignee"} />
+                  <SelectValue placeholder={sprintsLoading || membersLoading ? "Loading..." : "Select assignee"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {members.map((member) => (
+                  {members?.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
                       {member.name || member.email} ({member.role})
                     </SelectItem>
@@ -313,11 +259,11 @@ export function EditTaskDialog({
           </FieldGroup>
 
           <DialogFooter className="flex justify-end mt-4">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={updateTaskMutation.isPending}>
               Cancel
             </Button>
-            <Button type="submit" className="cursor-pointer hover:text-white transition-all duration-200 ease-in-out" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Task'}
+            <Button type="submit" className="cursor-pointer hover:text-white transition-all duration-200 ease-in-out" disabled={updateTaskMutation.isPending}>
+              {updateTaskMutation.isPending ? 'Updating...' : 'Update Task'}
             </Button>
           </DialogFooter>
         </form>

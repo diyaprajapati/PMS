@@ -9,6 +9,9 @@ import { useRouter } from 'next/navigation'
 import { DeleteProjectDialog } from '../projects/DeleteProjectDialog'
 import { EditProjectDialog, type Project } from '../projects/EditProjectDialog'
 import { type ProjectInfo } from '@/hooks/use-project-from-search-params'
+import { useSprintsQuery } from '@/queries/sprints.queries'
+import { useTasksQuery } from '@/queries/tasks.queries'
+import { useDeleteProjectMutation } from '@/queries/projects.queries'
 
 type ProjectDetailsProps = {
     projectId: string | null;
@@ -22,83 +25,22 @@ export default function ProjectDetails({ projectId, project, projectLoading, ref
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteProject, setDeleteProject] = useState<Project | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
     const router = useRouter();
 
-    // Stats state
-    const [sprintCount, setSprintCount] = useState<number>(0);
-    const [taskStats, setTaskStats] = useState({ total: 0, todo: 0, inProgress: 0, done: 0 });
-    const [statsLoading, setStatsLoading] = useState(false);
+    const { data: sprints, isLoading: sprintsLoading } = useSprintsQuery(projectId);
+    const { data: tasks, isLoading: tasksLoading } = useTasksQuery(projectId);
+    const deleteProjectMutation = useDeleteProjectMutation();
 
-    // Fetch stats
-    useEffect(() => {
-        const fetchStats = async () => {
-            if (!projectId) return;
+    const statsLoading = sprintsLoading || tasksLoading;
+    const sprintCount = sprints?.length ?? 0;
 
-            setStatsLoading(true);
-            try {
-                // Fetch sprints
-                const sprintsRes = await fetch(`/api/projects/${projectId}/sprints`, {
-                    credentials: 'include',
-                });
-                if (sprintsRes.ok) {
-                    const sprints = await sprintsRes.json();
-                    setSprintCount(Array.isArray(sprints) ? sprints.length : 0);
-                }
-
-                // Fetch all tasks for the project
-                // We need to fetch tasks from all sprints, so we'll query sprints first
-                // and then fetch tasks for each sprint, plus backlog tasks
-                const allTasks: any[] = [];
-
-                // Fetch sprints to get tasks from all sprints
-                if (sprintsRes.ok) {
-                    const sprints = await sprintsRes.json();
-
-                    // Fetch tasks from each sprint
-                    for (const sprint of sprints) {
-                        const sprintTasksRes = await fetch(
-                            `/api/projects/${projectId}/tasks?sprintId=${sprint.id}`,
-                            { credentials: 'include' }
-                        );
-                        if (sprintTasksRes.ok) {
-                            const sprintTasks = await sprintTasksRes.json();
-                            if (Array.isArray(sprintTasks)) {
-                                allTasks.push(...sprintTasks);
-                            }
-                        }
-                    }
-                }
-
-                // Also fetch backlog tasks (tasks without a sprint)
-                const backlogRes = await fetch(`/api/projects/${projectId}/tasks`, {
-                    credentials: 'include',
-                });
-                if (backlogRes.ok) {
-                    const backlogTasks = await backlogRes.json();
-                    if (Array.isArray(backlogTasks)) {
-                        allTasks.push(...backlogTasks);
-                    }
-                }
-
-                // Calculate stats
-                const stats = allTasks.reduce((acc, task) => {
-                    acc.total++;
-                    if (task.status === 'TODO') acc.todo++;
-                    else if (task.status === 'IN_PROGRESS') acc.inProgress++;
-                    else if (task.status === 'DONE') acc.done++;
-                    return acc;
-                }, { total: 0, todo: 0, inProgress: 0, done: 0 });
-                setTaskStats(stats);
-            } catch (error) {
-                console.error('Error fetching stats:', error);
-            } finally {
-                setStatsLoading(false);
-            }
-        };
-
-        fetchStats();
-    }, [projectId]);
+    const taskStats = (tasks ?? []).reduce((acc, task) => {
+        acc.total++;
+        if (task.status === 'TODO') acc.todo++;
+        else if (task.status === 'IN_PROGRESS') acc.inProgress++;
+        else if (task.status === 'DONE') acc.done++;
+        return acc;
+    }, { total: 0, todo: 0, inProgress: 0, done: 0 });
 
     // Format date helper
     const formatDate = (dateString: string) => {
@@ -134,33 +76,19 @@ export default function ProjectDetails({ projectId, project, projectLoading, ref
       };
     
       const handleDeleteConfirm = async (project: Project) => {
-        setDeletingId(project.id);
         try {
-          const res = await fetch(`/api/projects/${project.id}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          });
-    
-          if (res.status === 401) {
-            toast.error('Please log in to delete projects.');
-            router.replace('/login');
-            return;
-          }
-    
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            toast.error(data?.error ?? data?.message ?? 'Failed to delete project.');
-            return;
-          }
-    
+          await deleteProjectMutation.mutateAsync(project.id);
           toast.success('Project deleted.');
           setDeleteDialogOpen(false);
           setDeleteProject(null);
           router.push('/projects');
-        } catch {
-          toast.error('Something went wrong. Please try again.');
-        } finally {
-          setDeletingId(null);
+        } catch (err: any) {
+          if (err?.status === 401) {
+            toast.error('Please log in to delete projects.');
+            router.replace('/login');
+            return;
+          }
+          toast.error(err?.message ?? 'Something went wrong. Please try again.');
         }
       };
     
@@ -344,7 +272,7 @@ export default function ProjectDetails({ projectId, project, projectLoading, ref
           setDeleteDialogOpen(open);
         }}
         onConfirm={(project) => handleDeleteConfirm(project)}
-        deleting={deleteProject !== null && deletingId === deleteProject.id}
+        deleting={deleteProjectMutation.isPending}
       />
     </div>
   );

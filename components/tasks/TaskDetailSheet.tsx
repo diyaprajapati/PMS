@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProjectFromSearchParams } from "@/hooks/use-project-from-search-params";
+import {
+  useTaskDetailQuery,
+  useUpdateTaskMutation,
+  useAssignTaskMutation,
+  taskQueryKeys,
+} from "@/queries/tasks.queries";
+import { useProjectMembersQuery } from "@/queries/bugs.queries";
 import type { Task, TaskPriority, TaskStatus } from "@/types/task";
 import {
   Sheet,
@@ -59,10 +67,15 @@ export function TaskDetailSheet({
   onOpenChange,
   onUpdated,
 }: TaskDetailSheetProps) {
+  const queryClient = useQueryClient();
   const { projectId } = useProjectFromSearchParams();
-  const [task, setTask] = useState<Task | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(false);
+
+  const { data: task, isLoading: loading } = useTaskDetailQuery(projectId, taskId);
+  const { data: members } = useProjectMembersQuery(projectId);
+
+  const updateTaskMutation = useUpdateTaskMutation(projectId);
+  const assignTaskMutation = useAssignTaskMutation(projectId);
+
   const [saving, setSaving] = useState(false);
 
   const [title, setTitle] = useState("");
@@ -75,52 +88,20 @@ export function TaskDetailSheet({
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !projectId || !taskId) return;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [taskRes, membersRes] = await Promise.all([
-          fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
-            credentials: "include",
-          }),
-          fetch(`/api/projects/${projectId}/members`, {
-            credentials: "include",
-          }),
-        ]);
-
-        if (!taskRes.ok) {
-          throw new Error("Failed to load task details");
-        }
-        const taskData: Task = await taskRes.json();
-        setTask(taskData);
-
-        setTitle(taskData.title);
-        setDescription(taskData.description || "");
-        setAcceptanceCriteria(taskData.acceptanceCriteria || "");
-        setStatus(taskData.status);
-        setPriority(taskData.priority ?? "P3");
-        setEstimatedHours(
-          taskData.estimatedHours != null
-            ? String(taskData.estimatedHours)
-            : ""
-        );
-        setAssigneeId(taskData.assigneeId);
-
-        if (membersRes.ok) {
-          const membersData = await membersRes.json();
-          setMembers(membersData);
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to load subtask details");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void fetchData();
-  }, [open, projectId, taskId]);
+    if (task) {
+      setTitle(task.title);
+      setDescription(task.description || "");
+      setAcceptanceCriteria(task.acceptanceCriteria || "");
+      setStatus(task.status);
+      setPriority(task.priority ?? "P3");
+      setEstimatedHours(
+        task.estimatedHours != null
+          ? String(task.estimatedHours)
+          : ""
+      );
+      setAssigneeId(task.assigneeId);
+    }
+  }, [task]);
 
   const handleSave = async () => {
     if (!projectId || !taskId || !task) return;
@@ -135,50 +116,28 @@ export function TaskDetailSheet({
 
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = {
+      const payload = {
         title: title.trim(),
         description: description.trim() || null,
         acceptanceCriteria: acceptanceCriteria.trim() || null,
         priority,
         estimatedHours: hoursValue,
+        ...(task.parentTaskId ? { status } : {}),
       };
 
-      // Only subtasks can change status directly; parents with subtasks are controlled by rules
-      if (task.parentTaskId) {
-        payload.status = status;
-      }
-
-      const [updateRes, assignRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        }),
-        fetch(`/api/projects/${projectId}/tasks/${taskId}/assign`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ assigneeId }),
-        }),
+      await Promise.all([
+        updateTaskMutation.mutateAsync({ taskId, payload }),
+        assignTaskMutation.mutateAsync({ taskId, payload: { assigneeId } }),
       ]);
 
-      if (!updateRes.ok) {
-        const data = await updateRes.json().catch(() => ({}));
-        throw new Error(data?.error || "Failed to update subtask");
-      }
-      if (!assignRes.ok) {
-        const data = await assignRes.json().catch(() => ({}));
-        throw new Error(data?.error || "Failed to update subtask assignee");
-      }
-
-      const updated: Task = await updateRes.json();
-      setTask(updated);
       toast.success("Subtask updated");
+      if (projectId && taskId) {
+        await queryClient.invalidateQueries({
+          queryKey: taskQueryKeys.detail(projectId, taskId),
+        });
+      }
       onUpdated?.();
-      // Close the sheet after a successful save so it doesn't appear to "re-open"
       onOpenChange(false);
-      setTask(null);
     } catch (error: unknown) {
       toast.error(
         error instanceof Error ? error.message : "Failed to update subtask",
@@ -189,12 +148,7 @@ export function TaskDetailSheet({
   };
 
   const close = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      onOpenChange(false);
-      setTask(null);
-    } else {
-      onOpenChange(true);
-    }
+    onOpenChange(nextOpen);
   };
 
   const isSubtask = !!task?.parentTaskId;
@@ -396,7 +350,7 @@ export function TaskDetailSheet({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {members.map((member) => (
+                    {(members ?? []).map((member) => (
                       <SelectItem key={member.id} value={member.id}>
                         {member.name || member.email}
                       </SelectItem>

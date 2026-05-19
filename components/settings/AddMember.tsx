@@ -18,17 +18,18 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { toast } from 'sonner'
 import { UserPlus } from 'lucide-react'
+import { useAddMemberMutation } from '@/queries/members.queries'
 
 type AddMemberProps = {
   projectId: string;
-  onMemberAdded?: () => void;
 };
 
-export default function AddMember({ projectId, onMemberAdded }: AddMemberProps) {
+export default function AddMember({ projectId }: AddMemberProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'ADMIN' | 'DEVELOPER' | 'CLIENT'>('CLIENT');
-  const [loading, setLoading] = useState(false);
+
+  const mutation = useAddMemberMutation(projectId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,34 +45,24 @@ export default function AddMember({ projectId, onMemberAdded }: AddMemberProps) 
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: email.trim(), role }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || 'Failed to add member');
-        return;
+    mutation.mutate(
+      { email: email.trim(), role },
+      {
+        onSuccess: () => {
+          toast.success(`Invitation sent to ${email}`);
+          setEmail('');
+          setRole('CLIENT');
+          setOpen(false);
+        },
+        onError: (error) => {
+          console.error('Error adding member:', error);
+          toast.error('Failed to add member');
+        },
       }
-
-      toast.success(`Invitation sent to ${email}`);
-      setEmail('');
-      setRole('CLIENT');
-      setOpen(false);
-      onMemberAdded?.(); // Refresh the members list
-    } catch (error) {
-      console.error('Error adding member:', error);
-      toast.error('Failed to add member');
-    } finally {
-      setLoading(false);
-    }
+    );
   };
+
+  const loading = mutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

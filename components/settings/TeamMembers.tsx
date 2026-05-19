@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '../ui/button'
 import { Pencil, Trash2, MoreVertical, Users, Shield, Code, User } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
@@ -14,7 +14,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
-import { toast } from 'sonner'
+import { useMembersQuery } from '@/queries/members.queries'
+import type { ProjectMember } from '@/services/members.service'
 
 export type TeamMember = {
   id: string;
@@ -32,45 +33,11 @@ type TeamMembersProps = {
 };
 
 export default function TeamMembers({ projectId }: TeamMembersProps) {
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: members, isLoading: loading } = useMembersQuery(projectId);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [deleteMember, setDeleteMember] = useState<TeamMember | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-  const fetchMembers = async () => {
-    if (!projectId) return;
-
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/members`, {
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          toast.error('Please log in to view team members.');
-          return;
-        }
-        const data = await res.json();
-        toast.error(data.error || 'Failed to load team members');
-        return;
-      }
-
-      const data = await res.json();
-      setMembers(data || []);
-    } catch (error) {
-      console.error('Error fetching members:', error);
-      toast.error('Failed to load team members');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchMembers();
-  }, [projectId]);
 
   const handleEditClick = (member: TeamMember) => {
     setEditingMember(member);
@@ -126,7 +93,9 @@ export default function TeamMembers({ projectId }: TeamMembersProps) {
     );
   }
 
-  const roleStats = members.reduce((acc, member) => {
+  const memberList = (members ?? []) as TeamMember[];
+
+  const roleStats = memberList.reduce((acc, member) => {
     acc[member.role] = (acc[member.role] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -139,18 +108,18 @@ export default function TeamMembers({ projectId }: TeamMembersProps) {
           <h2 className='text-2xl font-semibold'>Team Members</h2>
           <p className='text-sm text-muted-foreground'>Manage your project team members</p>
         </div>
-        <AddMember projectId={projectId} onMemberAdded={fetchMembers} />
+        <AddMember projectId={projectId} />
       </div>
 
       {/* Stats */}
-      {!loading && members.length > 0 && (
+      {!loading && memberList.length > 0 && (
         <div className='grid md:grid-cols-4 grid-cols-2 gap-4'>
           <div className='flex flex-col gap-2 p-4 rounded-lg border bg-background/60'>
             <div className='flex items-center gap-2'>
               <Users className="size-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Total Members</span>
             </div>
-            <div className="text-3xl font-bold">{members.length}</div>
+            <div className="text-3xl font-bold">{memberList.length}</div>
           </div>
 
           <div className='flex flex-col gap-2 p-4 rounded-lg border bg-background/60'>
@@ -184,14 +153,14 @@ export default function TeamMembers({ projectId }: TeamMembersProps) {
         <div className='flex items-center justify-center py-12'>
           <div className='h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent' />
         </div>
-      ) : members.length === 0 ? (
+      ) : memberList.length === 0 ? (
         <div className='flex flex-col items-center justify-center py-12 text-center border rounded-lg bg-background/60'>
           <p className='text-sm text-muted-foreground'>No team members yet.</p>
           <p className='text-xs text-muted-foreground mt-1'>Add members to collaborate on this project.</p>
         </div>
       ) : (
         <div className='flex flex-col gap-3'>
-          {members.map((member) => (
+          {memberList.map((member) => (
             <div key={member.id} className='flex border items-center justify-between gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors'>
               <div className='flex items-center gap-3 flex-1'>
                 <Avatar className='size-10'>
@@ -252,7 +221,6 @@ export default function TeamMembers({ projectId }: TeamMembersProps) {
           }
         }}
         projectId={projectId || ''}
-        onRoleUpdated={fetchMembers}
       />
 
       {/* Delete Member Dialog */}
@@ -266,7 +234,6 @@ export default function TeamMembers({ projectId }: TeamMembersProps) {
           }
         }}
         projectId={projectId || ''}
-        onMemberDeleted={fetchMembers}
       />
     </div>
   );

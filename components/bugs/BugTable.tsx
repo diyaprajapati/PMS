@@ -109,7 +109,6 @@ function PriorityPill({ priority, onUpdate }: { priority: TaskPriority; onUpdate
           className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border border-border/60 text-muted-foreground/80 bg-background/60 hover:bg-accent/40 transition-colors cursor-pointer"
         >
           <span className="font-semibold">{option.value}</span>
-          <span className="hidden sm:inline">{option.label}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="center" className="p-1 w-44" onClick={(e) => e.stopPropagation()}>

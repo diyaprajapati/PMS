@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { useDeleteProjectMutation, useProjectsQuery } from "@/queries/projects.queries";
-import { ApiError } from "@/services/http-client";
+import { ApiError } from "@/lib/api-client";
 import { handleUnauthorizedError } from "@/lib/handle-unauthorized";
 import type { Project } from "@/services/projects.service";
 

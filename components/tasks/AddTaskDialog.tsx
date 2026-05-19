@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,20 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from 'sonner';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
 import { Plus } from 'lucide-react';
-
-type Sprint = {
-  id: string;
-  title: string;
-  status: string;
-};
-
-type ProjectMember = {
-  id: string;
-  userId: string;
-  email: string;
-  name: string | null;
-  role: string;
-};
+import { useSprintsQuery } from '@/queries/sprints.queries';
+import { useMembersQuery } from '@/queries/members.queries';
+import { useCreateTaskMutation } from '@/queries/tasks.queries';
 
 type AddTaskDialogProps = {
   onSuccess?: () => void;
@@ -50,46 +39,13 @@ export function AddTaskDialog({ onSuccess, parentTaskId, defaultSprintId }: AddT
   const [sprintId, setSprintId] = useState<string | null>(defaultSprintId || null);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
 
-  useEffect(() => {
-    if (open && projectId) {
-      fetchSprintsAndMembers();
-    }
-  }, [open, projectId]);
-
-  const fetchSprintsAndMembers = async () => {
-    if (!projectId) return;
-
-    setLoadingData(true);
-    try {
-      // Fetch sprints and members in parallel
-      const [sprintsRes, membersRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}/sprints`, { credentials: 'include' }),
-        fetch(`/api/projects/${projectId}/members`, { credentials: 'include' }),
-      ]);
-
-      if (sprintsRes.ok) {
-        const sprintsData = await sprintsRes.json();
-        setSprints(sprintsData);
-      }
-
-      if (membersRes.ok) {
-        const membersData = await membersRes.json();
-        setMembers(membersData);
-      }
-    } catch (err) {
-      console.error('Error fetching data:', err);
-    } finally {
-      setLoadingData(false);
-    }
-  };
+  const { data: sprints, isLoading: sprintsLoading } = useSprintsQuery(projectId);
+  const { data: members, isLoading: membersLoading } = useMembersQuery(projectId);
+  const createTaskMutation = useCreateTaskMutation(projectId);
 
   const handleClose = () => {
-    if (!loading) {
+    if (!createTaskMutation.isPending) {
       setOpen(false);
       // Reset form
       setTitle('');
@@ -120,38 +76,22 @@ export function AddTaskDialog({ onSuccess, parentTaskId, defaultSprintId }: AddT
       return;
     }
 
-    setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description: description.trim() || null,
-          acceptanceCriteria: acceptanceCriteria.trim() || null,
-          estimatedHours: hoursValue,
-          sprintId: sprintId || null,
-          assigneeId: assigneeId || null,
-          parentTaskId: parentTaskId || null,
-        }),
+      await createTaskMutation.mutateAsync({
+        title: trimmedTitle,
+        description: description.trim() || null,
+        acceptanceCriteria: acceptanceCriteria.trim() || null,
+        estimatedHours: hoursValue,
+        sprintId: sprintId || null,
+        assigneeId: assigneeId || null,
+        parentTaskId: parentTaskId || null,
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        const message = data?.error ?? 'Failed to create task.';
-        toast.error(message);
-        if (data?.field === 'title') setTitleError(data.message ?? message);
-        return;
-      }
 
       toast.success(parentTaskId ? 'Subtask created successfully' : 'Task created successfully');
       handleClose();
       onSuccess?.();
-    } catch {
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Something went wrong. Please try again.');
     }
   };
 
@@ -231,11 +171,11 @@ export function AddTaskDialog({ onSuccess, parentTaskId, defaultSprintId }: AddT
               <Label htmlFor="task-sprint">Sprint</Label>
               <Select value={sprintId || "backlog"} onValueChange={(value) => setSprintId(value === "backlog" ? null : value)}>
                 <SelectTrigger id="task-sprint">
-                  <SelectValue placeholder={loadingData ? "Loading..." : "Select sprint"} />
+                  <SelectValue placeholder={sprintsLoading || membersLoading ? "Loading..." : "Select sprint"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
-                  {sprints.map((sprint) => (
+                  {sprints?.map((sprint) => (
                     <SelectItem key={sprint.id} value={sprint.id}>
                       {sprint.title}
                     </SelectItem>
@@ -248,11 +188,11 @@ export function AddTaskDialog({ onSuccess, parentTaskId, defaultSprintId }: AddT
               <Label htmlFor="task-assignee">Assignee</Label>
               <Select value={assigneeId || "unassigned"} onValueChange={(value) => setAssigneeId(value === "unassigned" ? null : value)}>
                 <SelectTrigger id="task-assignee">
-                  <SelectValue placeholder={loadingData ? "Loading..." : "Select assignee"} />
+                  <SelectValue placeholder={sprintsLoading || membersLoading ? "Loading..." : "Select assignee"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {members.map((member) => (
+                  {members?.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
                       {member.name || member.email} ({member.role})
                     </SelectItem>
@@ -263,11 +203,11 @@ export function AddTaskDialog({ onSuccess, parentTaskId, defaultSprintId }: AddT
           </FieldGroup>
 
           <DialogFooter className="flex justify-end mt-4">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={createTaskMutation.isPending}>
               Cancel
             </Button>
-            <Button type="submit" className="cursor-pointer hover:text-white transition-all duration-200 ease-in-out" disabled={loading}>
-              {loading ? 'Creating...' : (parentTaskId ? 'Create Subtask' : 'Create Task')}
+            <Button type="submit" className="cursor-pointer hover:text-white transition-all duration-200 ease-in-out" disabled={createTaskMutation.isPending}>
+              {createTaskMutation.isPending ? 'Creating...' : (parentTaskId ? 'Create Subtask' : 'Create Task')}
             </Button>
           </DialogFooter>
         </form>

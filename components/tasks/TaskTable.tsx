@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRightLeft, ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2, UserRound } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Avatar, AvatarFallback, AvatarImage, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -17,6 +18,18 @@ import { TaskDetailSheet } from './TaskDetailSheet';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useProjectFromSearchParams } from '@/hooks/use-project-from-search-params';
+import {
+  useTasksQuery,
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
+  useAssignTaskMutation,
+  useMoveTaskMutation,
+  taskQueryKeys,
+} from '@/queries/tasks.queries';
+import { useProjectMembersQuery } from '@/queries/bugs.queries';
+import { useSprintsQuery } from '@/queries/sprints.queries';
+import type { CreateTaskPayload, UpdateTaskPayload, TaskFilters } from '@/services/tasks.service';
 import type { Task, TaskPriority, TaskStatus } from '@/types/task';
 
 // ---------------------------------------------------------------------------
@@ -270,7 +283,6 @@ function PriorityPill({
           className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border border-border/60 text-muted-foreground/80 bg-background/60 hover:bg-accent/40 transition-colors cursor-pointer"
         >
           <span className="font-semibold">{opt.code}</span>
-          <span className="hidden sm:inline">{opt.label}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="center" className="p-1 w-44" onClick={(e) => e.stopPropagation()}>
@@ -779,155 +791,81 @@ export function TaskTable({
   priority?: TaskPriority | null;
   status?: TaskStatus | null;
 }) {
+  const queryClient = useQueryClient();
   const { projectId } = useProjectFromSearchParams();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [members, setMembers] = useState<Member[]>([]);
+
+  const filters = useMemo<TaskFilters>(
+    () => ({
+      sprintId: sprintId ?? undefined,
+      assigneeId: filterAssigneeId ?? undefined,
+      priority: filterPriority ?? undefined,
+      status: filterStatus ?? undefined,
+      parentTaskId: null,
+      includeSubtasks: true,
+    }),
+    [sprintId, filterAssigneeId, filterPriority, filterStatus],
+  );
+
+  const { data: tasks, isLoading: loading } = useTasksQuery(projectId, filters);
+  const { data: members } = useProjectMembersQuery(projectId);
+  const { data: sprints } = useSprintsQuery(projectId);
+
+  const createTaskMutation = useCreateTaskMutation(projectId, filters);
+  const updateTaskMutation = useUpdateTaskMutation(projectId, filters);
+  const deleteTaskMutation = useDeleteTaskMutation(projectId, filters);
+  const assignTaskMutation = useAssignTaskMutation(projectId, filters);
+  const moveTaskMutation = useMoveTaskMutation(projectId, filters);
+
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [editTarget, setEditTarget] = useState<Task | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // Keep a stable ref to onLoad so it never causes fetchTasks to re-run
   const onLoadRef = useRef(onLoad);
   onLoadRef.current = onLoad;
 
-  // -------------------------------------------------------------------------
-  // Data fetching
-  // -------------------------------------------------------------------------
-
-  const fetchTasks = useCallback(async () => {
-    if (!projectId) { setLoading(false); return; }
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({ includeSubtasks: 'true', parentTaskId: 'null' });
-      if (sprintId) {
-        params.set('sprintId', sprintId);
-      }
-      if (filterAssigneeId) params.set('assigneeId', filterAssigneeId);
-      if (filterPriority) params.set('priority', filterPriority);
-      if (filterStatus) params.set('status', filterStatus);
-
-      const res = await fetch(`/api/projects/${projectId}/tasks?${params}`, { credentials: 'include' });
-      if (!res.ok) throw new Error();
-      const data: Task[] = await res.json();
-      setTasks(data);
-      // Use ref so onLoad is never a fetchTasks dependency
-      onLoadRef.current?.(data);
-    } catch {
-      toast.error('Failed to load tasks');
-    } finally {
-      setLoading(false);
-    }
-  // NOTE: onLoad intentionally omitted – use onLoadRef instead
-  }, [projectId, sprintId, filterAssigneeId, filterPriority, filterStatus]);
-
-  const fetchMembers = useCallback(async () => {
-    if (!projectId) return;
-    try {
-      const res = await fetch(`/api/projects/${projectId}/members`, { credentials: 'include' });
-      if (res.ok) setMembers(await res.json());
-    } catch { /* silent */ }
-  }, [projectId]);
-
   useEffect(() => {
-    fetchTasks();
-    fetchMembers();
-  }, [fetchTasks, fetchMembers]);
+    if (tasks) {
+      onLoadRef.current?.(tasks);
+    }
+  }, [tasks]);
 
-  // -------------------------------------------------------------------------
-  // Mutations
-  // -------------------------------------------------------------------------
-
-  const handleUpdate = useCallback(async (taskId: string, data: Record<string, unknown>) => {
-    if (!projectId) return;
-
-    const isAssigneeChange = Object.prototype.hasOwnProperty.call(data, 'assigneeId');
-
-    // Optimistic patch – resolve assignee relation for instant avatar
-    const optimistic: Partial<Task> & Record<string, unknown> = { ...data };
-    if (isAssigneeChange) {
-      if (data.assigneeId === null) {
-        optimistic.assignee = null;
-      } else {
-        const m = members.find((m) => m.id === data.assigneeId);
-        if (m) {
-          optimistic.assignee = {
-            id: m.id,
-            role: m.role,
-            user: { id: m.userId, name: m.name, email: m.email, image: null },
-          };
+  const handleUpdate = useCallback(
+    async (taskId: string, data: Record<string, unknown>) => {
+      if (!projectId) return;
+      const isAssigneeChange = Object.prototype.hasOwnProperty.call(data, 'assigneeId');
+      try {
+        if (isAssigneeChange) {
+          await assignTaskMutation.mutateAsync({
+            taskId,
+            payload: { assigneeId: data.assigneeId as string | null },
+          });
+        } else {
+          await updateTaskMutation.mutateAsync({
+            taskId,
+            payload: data as UpdateTaskPayload,
+          });
         }
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to update task');
       }
-    }
-
-    setTasks((prev) => updateTaskInList(prev, taskId, optimistic));
-
-    try {
-      const endpoint = isAssigneeChange
-        ? `/api/projects/${projectId}/tasks/${taskId}/assign`
-        : `/api/projects/${projectId}/tasks/${taskId}`;
-
-      const res = await fetch(endpoint, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(
-          isAssigneeChange
-            ? { assigneeId: data.assigneeId }
-            : data,
-        ),
-      });
-      if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e?.error ?? 'Update failed');
-      }
-      const updated: Task = await res.json();
-      setTasks((prev) => replaceTaskInList(prev, taskId, updated));
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update task');
-      fetchTasks();
-    }
-  }, [projectId, members, fetchTasks]);
+    },
+    [projectId, assignTaskMutation, updateTaskMutation],
+  );
 
   const handleCreate = useCallback(
     async (title: string, parentTaskId?: string | null) => {
       if (!projectId || !title.trim()) return;
       try {
-        const body: Record<string, unknown> = {
+        const payload: CreateTaskPayload = {
           title: title.trim(),
           parentTaskId: parentTaskId ?? null,
         };
-        // Assign to sprint context if creating a top-level task
         if (!parentTaskId && sprintId && sprintId !== 'backlog') {
-          body.sprintId = sprintId;
+          payload.sprintId = sprintId;
         }
-
-        const res = await fetch(`/api/projects/${projectId}/tasks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const e = await res.json();
-          throw new Error(e?.error ?? 'Create failed');
-        }
-        const newTask: Task = await res.json();
-
-        setTasks((prev) => {
-          let next: Task[];
-          if (parentTaskId) {
-            next = addSubtaskToList(prev, parentTaskId, newTask);
-          } else {
-            next = [newTask, ...prev];
-          }
-          onLoadRef.current?.(next);
-          return next;
-        });
-
+        await createTaskMutation.mutateAsync(payload);
         if (parentTaskId) {
           setExpandedIds((prev) => new Set([...prev, parentTaskId]));
         }
@@ -935,102 +873,62 @@ export function TaskTable({
         toast.error(err instanceof Error ? err.message : 'Failed to create task');
       }
     },
-    [projectId, sprintId],
+    [projectId, sprintId, createTaskMutation],
   );
 
-  const handleDelete = useCallback(async (task: Task) => {
-    if (!projectId) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d?.error ?? 'Delete failed');
+  const handleDelete = useCallback(
+    async (task: Task) => {
+      if (!projectId) return;
+      try {
+        await deleteTaskMutation.mutateAsync(task.id);
+        toast.success('Task deleted');
+        setDeleteTarget(null);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to delete task');
       }
-      toast.success('Task deleted');
-      setDeleteTarget(null);
-      setTasks((prev) => {
-        const updated = removeTaskFromList(prev, task.id);
-        onLoadRef.current?.(updated);
-        return updated;
-      });
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete task');
-    } finally {
-      setDeleting(false);
-    }
-  }, [projectId]);
+    },
+    [projectId, deleteTaskMutation],
+  );
 
   const handleMoveToBacklog = useCallback(
     async (task: Task) => {
       if (!projectId) return;
       try {
-        const res = await fetch(
-          `/api/projects/${projectId}/tasks/${task.id}/move`,
-          {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ sprintId: null }),
-          },
-        );
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          throw new Error(d?.error ?? 'Failed to move task to backlog');
-        }
+        await moveTaskMutation.mutateAsync({
+          taskId: task.id,
+          payload: { sprintId: null },
+        });
         toast.success('Task moved to backlog');
-        fetchTasks();
       } catch (err: unknown) {
         toast.error(
           err instanceof Error ? err.message : 'Failed to move task to backlog',
         );
       }
     },
-    [projectId, fetchTasks],
+    [projectId, moveTaskMutation],
   );
 
   const handleMoveToSprint = useCallback(
     async (task: Task) => {
       if (!projectId) return;
+      if (!sprints?.length) {
+        toast.error('No sprints available to move task into');
+        return;
+      }
       try {
-        const res = await fetch(`/api/projects/${projectId}/sprints`, {
-          credentials: 'include',
+        const active = sprints.find((s) => s.status === 'ACTIVE') ?? sprints[0];
+        await moveTaskMutation.mutateAsync({
+          taskId: task.id,
+          payload: { sprintId: active.id },
         });
-        if (!res.ok) {
-          throw new Error('Failed to load sprints');
-        }
-        const sprints: { id: string; status: string }[] = await res.json();
-        if (!sprints.length) {
-          throw new Error('No sprints available to move task into');
-        }
-        const active =
-          sprints.find((s) => s.status === 'ACTIVE') ?? sprints[0];
-
-        const moveRes = await fetch(
-          `/api/projects/${projectId}/tasks/${task.id}/move`,
-          {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ sprintId: active.id }),
-          },
-        );
-        if (!moveRes.ok) {
-          const d = await moveRes.json().catch(() => ({}));
-          throw new Error(d?.error ?? 'Failed to move task to sprint');
-        }
         toast.success('Task moved to sprint');
-        fetchTasks();
       } catch (err: unknown) {
         toast.error(
           err instanceof Error ? err.message : 'Failed to move task to sprint',
         );
       }
     },
-    [projectId, fetchTasks],
+    [projectId, sprints, moveTaskMutation],
   );
 
   const toggleExpand = (taskId: string) =>
@@ -1055,7 +953,7 @@ export function TaskTable({
           key={task.id}
           task={task}
           depth={depth}
-          members={members}
+          members={members ?? []}
           isExpanded={isExpanded}
           onToggleExpand={() => toggleExpand(task.id)}
           onUpdate={(data) => handleUpdate(task.id, data)}
@@ -1123,7 +1021,7 @@ export function TaskTable({
         </div>
 
         <div>
-          {tasks.length === 0 ? (
+          {!tasks?.length ? (
             <div className="py-12 text-center">
               <p className="text-sm text-muted-foreground">No tasks found</p>
               <p className="text-xs text-muted-foreground/50 mt-1">
@@ -1152,7 +1050,7 @@ export function TaskTable({
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         onConfirm={handleDelete}
-        deleting={deleting}
+        deleting={deleteTaskMutation.isPending}
       />
 
       <EditTaskDialog
@@ -1162,7 +1060,9 @@ export function TaskTable({
           if (!open) setEditTarget(null);
         }}
         onSuccess={() => {
-          fetchTasks();
+          if (projectId) {
+            queryClient.invalidateQueries({ queryKey: taskQueryKeys.list(projectId, filters) });
+          }
         }}
       />
 
@@ -1174,7 +1074,9 @@ export function TaskTable({
           if (!open) setDetailTaskId(null);
         }}
         onUpdated={() => {
-          fetchTasks();
+          if (projectId) {
+            queryClient.invalidateQueries({ queryKey: taskQueryKeys.list(projectId, filters) });
+          }
         }}
       />
     </>
