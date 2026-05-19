@@ -8,6 +8,15 @@ import { useDeleteBugMutation, useProjectMembersQuery, useUpdateBugMutation } fr
 import { useProjectFromSearchParams } from "@/hooks/use-project-from-search-params";
 import { BUG_PRIORITY_OPTIONS, BUG_STATUS_OPTIONS, type BugStatus } from "@/types/bug";
 import type { TaskPriority } from "@/types/task";
+
+const priorityStyles: Record<TaskPriority, string> = {
+  P0: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100 border-red-300 dark:border-red-700',
+  P1: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100 border-orange-300 dark:border-orange-700',
+  P2: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-700',
+  P3: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 border-blue-300 dark:border-blue-700',
+  P4: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-600',
+  P5: 'bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-300 border-gray-300 dark:border-gray-700',
+};
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

@@ -8,6 +8,11 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -71,16 +76,55 @@ const statusLabels: Record<SprintStatus, string> = {
   COMPLETED: 'Completed',
 };
 
-function SprintInlineBadge({ status }: { status: SprintStatus }) {
+function SprintStatusPill({
+  status,
+  onUpdate,
+  disabled,
+}: {
+  status: SprintStatus;
+  onUpdate: (s: SprintStatus) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
-        statusBadgeStyles[status]
-      )}
-    >
-      {statusLabels[status]}
-    </span>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          disabled={disabled}
+          className={cn(
+            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+            statusBadgeStyles[status]
+          )}
+        >
+          {statusLabels[status]}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="p-1 w-40">
+        {( ['NOT_STARTED', 'ACTIVE', 'COMPLETED'] as SprintStatus[] ).map((s) => (
+          <button
+            key={s}
+            onClick={() => {
+              onUpdate(s);
+              setOpen(false);
+            }}
+            className={cn(
+              'flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors text-left cursor-pointer',
+              status === s && 'bg-accent'
+            )}
+          >
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                statusBadgeStyles[s]
+              )}
+            >
+              {statusLabels[s]}
+            </span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -237,13 +281,13 @@ export default function Sprint() {
           {selectedSprint && (
             <>
               <Separator orientation="vertical" className="h-5" />
-              <Select
-                value={selectedSprint.status}
-                onValueChange={async (value) => {
+              <SprintStatusPill
+                status={selectedSprint.status}
+                onUpdate={async (status) => {
                   try {
                     await updateSprintMutation.mutateAsync({
                       sprintId: selectedSprint.id,
-                      payload: { status: value as SprintStatus },
+                      payload: { status },
                     });
                     toast.success('Sprint status updated');
                   } catch (err: any) {
@@ -251,16 +295,7 @@ export default function Sprint() {
                   }
                 }}
                 disabled={updateSprintMutation.isPending}
-              >
-                <SelectTrigger className="h-7 w-auto gap-1.5 border-none bg-transparent px-2 py-0 hover:bg-accent/40 rounded-md text-xs font-medium focus:ring-0 focus:ring-offset-0 [&>svg]:text-muted-foreground">
-                  <SprintInlineBadge status={selectedSprint.status} />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value="NOT_STARTED">Not Started</SelectItem>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                </SelectContent>
-              </Select>
+              />
             </>
           )}
           {selectedSprint && (

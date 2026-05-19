@@ -138,6 +138,15 @@ const PRIORITY_OPTIONS: {
   { value: 'P5', label: 'Lowest', code: 'P5' },
 ];
 
+const priorityStyles: Record<TaskPriority, string> = {
+  P0: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100 border-red-300 dark:border-red-700',
+  P1: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100 border-orange-300 dark:border-orange-700',
+  P2: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-700',
+  P3: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 border-blue-300 dark:border-blue-700',
+  P4: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-600',
+  P5: 'bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-300 border-gray-300 dark:border-gray-700',
+};
+
 function priorityOpt(p: TaskPriority): (typeof PRIORITY_OPTIONS)[number] {
   return PRIORITY_OPTIONS.find((o) => o.value === p) ?? PRIORITY_OPTIONS[3];
 }
@@ -273,16 +282,18 @@ function PriorityPill({
   onUpdate: (p: TaskPriority) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const opt = priorityOpt(priority);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border border-border/60 text-muted-foreground/80 bg-background/60 hover:bg-accent/40 transition-colors cursor-pointer"
+          className={cn(
+            'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors cursor-pointer',
+            priorityStyles[priority]
+          )}
         >
-          <span className="font-semibold">{opt.code}</span>
+          <span className="font-semibold">{priority}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="center" className="p-1 w-44" onClick={(e) => e.stopPropagation()}>
@@ -295,7 +306,12 @@ function PriorityPill({
               priority === o.value && 'bg-accent'
             )}
           >
-            <span className="font-semibold w-8 text-xs">{o.code}</span>
+            <span className={cn(
+              'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+              priorityStyles[o.value]
+            )}>
+              {o.code}
+            </span>
             <span className="truncate">{o.label}</span>
           </button>
         ))}
