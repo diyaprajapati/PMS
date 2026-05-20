@@ -189,7 +189,10 @@ export default function TermsOfService() {
                   Technical support is only provided to paying account holders and is only available via email. We strive to respond to all support requests within 24-48 hours during business days.
                 </p>
                 <p>
-                  You understand that Runway uses third-party vendors and hosting partners to provide the necessary hardware, software, networking, storage, and related technology required to run the Service.
+                  You understand that Runway uses third-party vendors and hosting partners to provide the necessary hardware, software, networking, storage, and related technology required to run the Service. Your data is securely stored with Neon DB, a managed third-party Postgres service.
+                </p>
+                <p>
+                  Runway does not sell, rent, or share your personal information or user data with any third parties for marketing, advertising, or any other purposes, except as strictly necessary to operate the Service or as required by law.
                 </p>
                 <p>
                   You must not modify, adapt or hack the Service or modify another website to falsely imply that it is associated with the Service or Runway.

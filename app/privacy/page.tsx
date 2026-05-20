@@ -121,26 +121,18 @@ export default function PrivacyPolicy() {
               </h2>
               <div className="space-y-6 text-foreground/80 leading-relaxed">
                 <p>
-                  We do not sell your personal information. We may share your information in the following circumstances:
+                  We do not sell, rent, or share your personal information or user data with any third parties for marketing, advertising, or any other purposes, except as strictly necessary to operate the Service or as required by law.
                 </p>
-
-                <div>
-                  <h3 className="font-display text-xl font-semibold mb-3 text-foreground">
-                    With Your Consent
-                  </h3>
-                  <p>
-                    We share your information with third parties when you give us explicit consent to do so.
-                  </p>
-                </div>
 
                 <div>
                   <h3 className="font-display text-xl font-semibold mb-3 text-foreground">
                     Service Providers
                   </h3>
                   <p>
-                    We share information with third-party service providers who perform services on our behalf, such as:
+                    We engage select third-party service providers solely to perform essential services on our behalf. Your data is only shared to the minimum extent required for them to provide their services:
                   </p>
                   <ul className="list-disc pl-6 space-y-2 mt-2">
+                    <li><strong>Neon DB</strong> — our database is securely stored with Neon, a third-party managed Postgres service. Neon processes and stores data on our behalf under strict security and confidentiality obligations.</li>
                     <li>Cloud hosting providers</li>
                     <li>Email service providers</li>
                     <li>Analytics providers</li>
@@ -156,15 +148,6 @@ export default function PrivacyPolicy() {
                     We may disclose your information if required to do so by law or in response to valid requests by public authorities.
                   </p>
                 </div>
-
-                <div>
-                  <h3 className="font-display text-xl font-semibold mb-3 text-foreground">
-                    Business Transfers
-                  </h3>
-                  <p>
-                    If we are involved in a merger, acquisition, or sale of assets, your information may be transferred as part of that transaction.
-                  </p>
-                </div>
               </div>
             </section>
 
@@ -178,7 +161,7 @@ export default function PrivacyPolicy() {
                   We implement appropriate technical and organizational measures to protect the security of your personal information. However, please note that no method of transmission over the Internet or electronic storage is 100% secure.
                 </p>
                 <p>
-                  We use industry-standard encryption for data in transit and at rest. Our infrastructure is hosted on secure, SOC 2 compliant cloud providers.
+                  We use industry-standard encryption for data in transit and at rest. Your data is securely stored in Neon DB, a managed third-party Postgres service that maintains robust physical and logical security controls.
                 </p>
                 <p>
                   While we strive to protect your personal information, we cannot guarantee its absolute security. You are responsible for maintaining the confidentiality of your account credentials.
