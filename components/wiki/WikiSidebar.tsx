@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, FileText, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Plus, FileText, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { markdownToTipTapJson } from "@/lib/markdown-to-tiptap";
 import type { WikiPage } from "@/types/wiki";
 
 type WikiSidebarProps = {
   pages: WikiPage[];
   selectedPageId: string | null;
   onSelectPage: (pageId: string) => void;
-  onCreatePage: (title: string) => Promise<void>;
+  onCreatePage: (title: string, content?: object) => Promise<void>;
   onDeletePage: (pageId: string) => Promise<void>;
   isLoading?: boolean;
 };
@@ -41,6 +42,34 @@ export function WikiSidebar({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePageId, setDeletePageId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [importedContent, setImportedContent] = useState<object | undefined>();
+  const [importedFileName, setImportedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (file: File) => {
+    if (!file.name.endsWith(".md") && !file.name.endsWith(".markdown")) {
+      toast.error("Please select a Markdown file (.md or .markdown)");
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const json = markdownToTipTapJson(text);
+      setImportedContent(json);
+      setImportedFileName(file.name);
+
+      // Auto-fill title from filename if title is empty
+      const baseName = file.name.replace(/\.md$/i, "").replace(/\.markdown$/i, "");
+      if (!newTitle.trim()) {
+        setNewTitle(baseName.replace(/[-_]/g, " "));
+      }
+
+      toast.success(`Imported "${file.name}"`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to import file";
+      toast.error(message);
+    }
+  };
 
   const handleCreate = async () => {
     const trimmed = newTitle.trim();
@@ -51,8 +80,10 @@ export function WikiSidebar({
     setTitleError(null);
     setCreating(true);
     try {
-      await onCreatePage(trimmed);
+      await onCreatePage(trimmed, importedContent);
       setNewTitle("");
+      setImportedContent(undefined);
+      setImportedFileName(null);
       setCreateOpen(false);
       toast.success("Wiki page created");
     } catch (error) {
@@ -151,12 +182,20 @@ export function WikiSidebar({
       </div>
 
       {/* Create Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(open) => {
+        setCreateOpen(open);
+        if (!open) {
+          setNewTitle("");
+          setTitleError(null);
+          setImportedContent(undefined);
+          setImportedFileName(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>New Wiki Page</DialogTitle>
             <DialogDescription>
-              Give your new wiki page a title.
+              Give your new wiki page a title, or import from a Markdown file.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -181,6 +220,35 @@ export function WikiSidebar({
                 <p className="text-sm text-destructive">{titleError}</p>
               )}
             </div>
+
+            <div className="grid gap-2">
+              <Label>Import from Markdown (optional)</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md,.markdown"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                {importedFileName ? `Imported: ${importedFileName}` : "Choose .md file"}
+              </Button>
+              {importedFileName && (
+                <p className="text-xs text-muted-foreground">
+                  Content will be imported from this file.
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -189,6 +257,8 @@ export function WikiSidebar({
                 setCreateOpen(false);
                 setNewTitle("");
                 setTitleError(null);
+                setImportedContent(undefined);
+                setImportedFileName(null);
               }}
               disabled={creating}
             >

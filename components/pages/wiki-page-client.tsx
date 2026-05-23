@@ -33,8 +33,8 @@ function WikiContent() {
   const updateMutation = useUpdateWikiPageMutation(projectId);
   const deleteMutation = useDeleteWikiPageMutation(projectId);
 
-  const handleCreatePage = async (title: string) => {
-    const page = await createMutation.mutateAsync({ title, content: {} });
+  const handleCreatePage = async (title: string, content?: object) => {
+    const page = await createMutation.mutateAsync({ title, content: content ?? {} });
     setSelectedPageId(page.id);
   };
 
