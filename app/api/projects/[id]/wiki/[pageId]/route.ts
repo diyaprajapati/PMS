@@ -42,7 +42,7 @@ export async function PUT(req: Request, context: RouteContext) {
 
   let body: {
     title?: string;
-    content?: object;
+    content?: string;
   };
 
   try {

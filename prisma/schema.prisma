@@ -183,7 +183,7 @@ model WikiPage {
   id        String   @id @default(uuid())
   projectId String
   title     String
-  content   Json
+  content   String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   authorId  String

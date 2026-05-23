@@ -15,14 +15,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { markdownToTipTapJson } from "@/lib/markdown-to-tiptap";
+import { readMarkdownFile } from "@/lib/markdown-to-tiptap";
 import type { WikiPage } from "@/types/wiki";
 
 type WikiSidebarProps = {
   pages: WikiPage[];
   selectedPageId: string | null;
   onSelectPage: (pageId: string) => void;
-  onCreatePage: (title: string, content?: object) => Promise<void>;
+  onCreatePage: (title: string, content?: string) => Promise<void>;
   onDeletePage: (pageId: string) => Promise<void>;
   isLoading?: boolean;
 };
@@ -42,7 +42,7 @@ export function WikiSidebar({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePageId, setDeletePageId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [importedContent, setImportedContent] = useState<object | undefined>();
+  const [importedContent, setImportedContent] = useState<string | undefined>();
   const [importedFileName, setImportedFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,12 +53,10 @@ export function WikiSidebar({
     }
 
     try {
-      const text = await file.text();
-      const json = markdownToTipTapJson(text);
-      setImportedContent(json);
+      const text = await readMarkdownFile(file);
+      setImportedContent(text);
       setImportedFileName(file.name);
 
-      // Auto-fill title from filename if title is empty
       const baseName = file.name.replace(/\.md$/i, "").replace(/\.markdown$/i, "");
       if (!newTitle.trim()) {
         setNewTitle(baseName.replace(/[-_]/g, " "));

@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@milkdown/crepe": "^7.21.1",
+    "@milkdown/kit": "^7.21.1",
+    "@milkdown/react": "^7.21.1",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@prisma/extension-accelerate": "^3.0.1",

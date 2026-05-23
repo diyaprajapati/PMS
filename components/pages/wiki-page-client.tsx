@@ -58,15 +58,15 @@ function WikiContent() {
     [router, buildUrl]
   );
 
-  const handleCreatePage = async (title: string, content?: object) => {
-    const page = await createMutation.mutateAsync({ title, content: content ?? {} });
+  const handleCreatePage = async (title: string, content?: string) => {
+    const page = await createMutation.mutateAsync({ title, content: content ?? "" });
     setSelectedPageId(page.id);
     router.replace(buildUrl(page.id), { scroll: false });
   };
 
   const handleSavePage = async (
     pageId: string,
-    payload: { title?: string; content?: object }
+    payload: { title?: string; content?: string }
   ) => {
     await updateMutation.mutateAsync({ pageId, payload });
   };

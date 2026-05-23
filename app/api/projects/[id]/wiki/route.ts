@@ -36,7 +36,7 @@ export async function POST(req: Request, context: RouteContext) {
 
   let body: {
     title?: string;
-    content?: object;
+    content?: string;
   };
 
   try {
@@ -60,7 +60,7 @@ export async function POST(req: Request, context: RouteContext) {
     const page = await createWikiPage({
       projectId,
       title,
-      content: body.content ?? {},
+      content: body.content ?? "",
       authorId: user.id,
     });
 

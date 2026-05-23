@@ -2,7 +2,7 @@ export type WikiPage = {
   id: string;
   projectId: string;
   title: string;
-  content: object;
+  content: string;
   createdAt: string;
   updatedAt: string;
   authorId: string;
@@ -16,10 +16,10 @@ export type WikiPage = {
 
 export type CreateWikiPageInput = {
   title: string;
-  content?: object;
+  content?: string;
 };
 
 export type UpdateWikiPageInput = {
   title?: string;
-  content?: object;
+  content?: string;
 };

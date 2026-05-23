@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 type CreateWikiPageInput = {
   projectId: string;
   title: string;
-  content: object;
+  content: string;
   authorId: string;
 };
 
@@ -11,7 +11,7 @@ type UpdateWikiPageInput = {
   projectId: string;
   pageId: string;
   title?: string;
-  content?: object;
+  content?: string;
 };
 
 export async function createWikiPage(input: CreateWikiPageInput) {
@@ -26,7 +26,7 @@ export async function createWikiPage(input: CreateWikiPageInput) {
     data: {
       projectId,
       title: trimmedTitle,
-      content: content ?? {},
+      content: content ?? "",
       authorId,
     },
     include: {
@@ -95,7 +95,7 @@ export async function updateWikiPage(input: UpdateWikiPageInput) {
 
   const data: {
     title?: string;
-    content?: object;
+    content?: string;
   } = {};
 
   if (title !== undefined) {

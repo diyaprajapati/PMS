@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { TipTapEditor } from "@/components/tiptap-editor";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MilkdownEditor } from "@/components/milkdown-editor";
 import {
   Dialog,
   DialogContent,
@@ -16,33 +17,48 @@ import {
 } from "@/components/ui/dialog";
 import type { WikiPage } from "@/types/wiki";
 
+type SaveStatus = "saved" | "saving" | "error";
+
 type WikiEditorProps = {
   page: WikiPage | null | undefined;
-  onSave: (pageId: string, payload: { title?: string; content?: object }) => Promise<void>;
+  onSave: (pageId: string, payload: { title?: string; content?: string }) => Promise<void>;
   onDelete: (pageId: string) => Promise<void>;
   isSaving: boolean;
 };
 
+function formatLastUpdated(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps) {
   const [title, setTitle] = useState("");
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>("");
 
-  // Track latest title for the debounced save callback
   const titleRef = useRef(title);
   useEffect(() => {
     titleRef.current = title;
   }, [title]);
 
-  // Sync title when page changes, and cancel any pending save from the previous page
   useEffect(() => {
     if (page) {
       setTitle(page.title);
-      setSaveStatus("idle");
+      setSaveStatus("saved");
       lastSavedRef.current = JSON.stringify({ title: page.title, content: page.content });
     }
     return () => {
@@ -62,22 +78,17 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
       const currentTitle = titleRef.current;
       const currentState = JSON.stringify({ title: currentTitle });
 
-      // We only compare title here; content is read from the editor instance
-      // when the save actually fires via the TipTap onChange callback
       if (currentState === lastSavedRef.current) return;
 
       setSaveStatus("saving");
 
-      onSave(page.id, {
-        title: currentTitle,
-      })
+      onSave(page.id, { title: currentTitle })
         .then(() => {
           setSaveStatus("saved");
           lastSavedRef.current = currentState;
-          setTimeout(() => setSaveStatus("idle"), 2000);
         })
         .catch((error) => {
-          setSaveStatus("idle");
+          setSaveStatus("error");
           const message = error instanceof Error ? error.message : "Failed to save";
           toast.error(message);
         });
@@ -90,7 +101,7 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
   };
 
   const handleContentChange = useCallback(
-    (newContent: object) => {
+    (newContent: string) => {
       if (!page) return;
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -110,10 +121,9 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
           .then(() => {
             setSaveStatus("saved");
             lastSavedRef.current = currentState;
-            setTimeout(() => setSaveStatus("idle"), 2000);
           })
           .catch((error) => {
-            setSaveStatus("idle");
+            setSaveStatus("error");
             const message = error instanceof Error ? error.message : "Failed to save";
             toast.error(message);
           });
@@ -146,36 +156,68 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
     );
   }
 
+  const authorName = page.author?.name || page.author?.email || "Unknown";
+  const authorInitials = (page.author?.name || page.author?.email || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b px-6 py-4 gap-4">
-        <Input
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          className="border-none bg-transparent text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto"
-          placeholder="Page title"
-        />
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="text-xs text-muted-foreground min-w-[60px] text-right">
-            {saveStatus === "saving" && "Saving..."}
-            {saveStatus === "saved" && "Saved"}
+      {/* Header: title + meta + actions */}
+      <div className="flex items-start justify-between border-b px-8 py-6 gap-4">
+        <div className="flex-1 min-w-0">
+          <Input
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            className="border-none bg-transparent text-3xl font-bold tracking-tight focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto"
+            placeholder="Page title"
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span className="flex items-center gap-2">
+              <Avatar className="h-5 w-5">
+                <AvatarImage src={page.author?.image ?? undefined} />
+                <AvatarFallback className="text-[10px]">{authorInitials}</AvatarFallback>
+              </Avatar>
+              <span className="text-foreground">{authorName}</span>
+            </span>
+            <span className="text-border" aria-hidden>·</span>
+            <span>
+              Last updated{" "}
+              <span className="text-foreground">{formatLastUpdated(page.updatedAt)}</span>
+            </span>
+            {saveStatus === "saving" && (
+              <span className="flex items-center gap-1 text-xs">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Saving…
+              </span>
+            )}
+            {saveStatus === "error" && (
+              <span className="text-destructive flex items-center gap-1 text-xs">
+                <AlertCircle className="h-3 w-3" />
+                Save failed
+              </span>
+            )}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={() => setDeleteOpen(true)}
-            title="Delete page"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 mt-1"
+          onClick={() => setDeleteOpen(true)}
+          title="Delete page"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
-      <div className="flex-1 overflow-y-auto p-6 md:p-10">
-        <TipTapEditor
-          key={page.id}
-          content={page.content ?? {}}
+
+      {/* Editor */}
+      <div className="flex-1 overflow-y-auto px-8 py-8">
+        <MilkdownEditor
+          content={page.content ?? ""}
           onChange={handleContentChange}
           placeholder="Start writing your wiki content..."
         />
