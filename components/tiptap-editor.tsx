@@ -102,7 +102,7 @@ export function TipTapEditor({
     editorProps: {
       attributes: {
         class:
-          "prose dark:prose-invert max-w-none min-h-[300px] focus:outline-none leading-relaxed",
+          "prose prose-lg dark:prose-invert max-w-none min-h-[300px] focus:outline-none leading-loose prose-p:my-3 prose-headings:mb-4 prose-headings:mt-6 prose-li:my-1.5 prose-blockquote:my-5 prose-pre:my-5",
       },
     },
   });
@@ -231,7 +231,7 @@ export function TipTapEditor({
           label="Redo"
         />
       </div>
-      <div className="p-4">
+      <div className="p-6 md:p-8">
         <EditorContent editor={editor} />
       </div>
     </div>
