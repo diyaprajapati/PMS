@@ -107,18 +107,6 @@ export function TipTapEditor({
     },
   });
 
-  // Update editor content when the parent provides new content (e.g. switching pages).
-  // This runs after mount and whenever the content prop changes.
-  useEffect(() => {
-    if (editor && content) {
-      const contentStr = JSON.stringify(content);
-      if (lastContentString.current !== contentStr) {
-        lastContentString.current = contentStr;
-        editor.commands.setContent(content, { emitUpdate: false });
-      }
-    }
-  }, [editor, content]);
-
   if (!editor) {
     return (
       <div className={cn("rounded-md border bg-card p-4", className)}>

@@ -188,5 +188,19 @@
   html, body {
     height: 100%;
   }
+
+  /* TipTap placeholder: show placeholder text on empty nodes without interfering with cursor */
+  .ProseMirror p.is-empty::before,
+  .ProseMirror h1.is-empty::before,
+  .ProseMirror h2.is-empty::before,
+  .ProseMirror h3.is-empty::before,
+  .ProseMirror li.is-empty::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+    user-select: none;
+    height: 0;
+  }
 }
 

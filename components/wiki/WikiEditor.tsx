@@ -174,6 +174,7 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
       </div>
       <div className="flex-1 overflow-y-auto p-6 md:p-10">
         <TipTapEditor
+          key={page.id}
           content={page.content ?? {}}
           onChange={handleContentChange}
           placeholder="Start writing your wiki content..."
