@@ -169,10 +169,11 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
       {/* Header: title + meta + actions */}
       <div className="flex items-start justify-between px-8 pt-8 pb-4 gap-4">
         <div className="flex-1 min-w-0">
-          <Input
+          <input
+            type="text"
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            className="border-none bg-transparent hover:bg-transparent focus-visible:bg-transparent text-3xl font-bold tracking-tight focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto shadow-none md:text-4xl lg:text-5xl"
+            className="w-full border-none bg-transparent text-3xl font-bold tracking-tight placeholder:text-muted-foreground focus-visible:outline-none px-0 h-auto md:text-4xl lg:text-5xl"
             placeholder="Page title"
           />
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
