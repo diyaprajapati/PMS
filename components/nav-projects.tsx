@@ -39,6 +39,7 @@ export function NavProjects({
       url === '/sprints' ||
       url === '/backlog' ||
       url === '/bugs' ||
+      url === '/wiki' ||
       url.startsWith('/settings/')
 
     if (shouldCarryProject) {

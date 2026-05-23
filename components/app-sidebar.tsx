@@ -4,6 +4,7 @@ import * as React from "react"
 import { Suspense } from "react"
 import {
   Bug,
+  BookOpen,
   Inbox,
   Layers,
   Settings2,
@@ -50,6 +51,11 @@ const data = {
       name: "Bug Tracker",
       url: "/bugs",
       icon: Bug,
+    },
+    {
+      name: "Wiki",
+      url: "/wiki",
+      icon: BookOpen,
     },
   ],
   navMain: [

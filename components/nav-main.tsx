@@ -3,6 +3,7 @@
 import { ChevronRight, type LucideIcon } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import * as React from "react"
 
 import {
   Collapsible,
@@ -19,6 +20,32 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+
+function useCollapsibleOpen(key: string, defaultOpen: boolean) {
+  const [open, setOpen] = React.useState(() => {
+    if (typeof window === "undefined") return defaultOpen
+    try {
+      const stored = window.localStorage.getItem(`sidebar-collapsible-${key}`)
+      return stored !== null ? stored === "true" : defaultOpen
+    } catch {
+      return defaultOpen
+    }
+  })
+
+  const handleOpenChange = React.useCallback(
+    (value: boolean) => {
+      setOpen(value)
+      try {
+        window.localStorage.setItem(`sidebar-collapsible-${key}`, String(value))
+      } catch {
+        // ignore storage errors
+      }
+    },
+    [key]
+  )
+
+  return [open, handleOpenChange] as const
+}
 
 export function NavMain({
   items,
@@ -64,11 +91,17 @@ export function NavMain({
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
+        {items.map((item) => {
+          const [open, onOpenChange] = useCollapsibleOpen(
+            item.title,
+            item.isActive ?? false
+          )
+          return (
           <Collapsible
             key={item.title}
             asChild
-            defaultOpen={item.isActive}
+            open={open}
+            onOpenChange={onOpenChange}
             className="group/collapsible"
           >
             <SidebarMenuItem>
@@ -103,7 +136,8 @@ export function NavMain({
               </CollapsibleContent>
             </SidebarMenuItem>
           </Collapsible>
-        ))}
+          )
+        })}
       </SidebarMenu>
     </SidebarGroup>
   )
