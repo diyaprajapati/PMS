@@ -172,7 +172,7 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
           <Input
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            className="border-none bg-transparent text-3xl font-bold tracking-tight focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto"
+            className="border-none bg-transparent text-3xl font-bold tracking-tight focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto md:text-4xl lg:text-5xl"
             placeholder="Page title"
           />
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">

@@ -37,6 +37,7 @@ export function MilkdownEditor({
     const loadCss = async () => {
       await import("@/styles/milkdown/common/style.css");
       await import("@/styles/milkdown/nord/style.css");
+      await import("@/styles/milkdown/nord-dark/style.css");
     };
     loadCss().catch(console.error);
   }, []);
