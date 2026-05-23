@@ -137,7 +137,7 @@ export function WikiPageClient() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="h-[100dvh] overflow-hidden">
         <Suspense
           fallback={
             <header className="flex h-20 shrink-0 items-center gap-3 border-b border-border/50 px-6">

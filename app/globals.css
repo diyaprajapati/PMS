@@ -209,9 +209,9 @@
   --crepe-color-background: transparent !important;
   --crepe-color-surface: transparent !important;
   --crepe-color-surface-low: transparent !important;
-  --crepe-color-hover: hsl(var(--accent)) !important;
-  --crepe-color-selected: hsl(var(--accent)) !important;
-  --crepe-color-inline-area: hsl(var(--muted)) !important;
+  --crepe-color-hover: rgba(0, 0, 0, 0.04) !important;
+  --crepe-color-selected: rgba(59, 130, 246, 0.2) !important;
+  --crepe-color-inline-area: rgba(0, 0, 0, 0.06) !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -221,9 +221,9 @@
   --crepe-color-background: transparent !important;
   --crepe-color-surface: transparent !important;
   --crepe-color-surface-low: transparent !important;
-  --crepe-color-hover: hsl(var(--accent)) !important;
-  --crepe-color-selected: hsl(var(--accent)) !important;
-  --crepe-color-inline-area: hsl(var(--muted)) !important;
+  --crepe-color-hover: rgba(255, 255, 255, 0.06) !important;
+  --crepe-color-selected: rgba(96, 165, 250, 0.25) !important;
+  --crepe-color-inline-area: rgba(255, 255, 255, 0.08) !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
