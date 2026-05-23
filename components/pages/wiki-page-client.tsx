@@ -80,7 +80,7 @@ function WikiContent() {
   };
 
   return (
-    <>
+    <div className="flex h-full flex-col overflow-hidden">
       <header className="flex h-20 shrink-0 items-center gap-2 border-b border-border/50 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16">
         <div className="flex items-center gap-3 px-6">
           <SidebarTrigger className="-ml-1 transition-all duration-200" />
@@ -129,7 +129,7 @@ function WikiContent() {
           </>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
