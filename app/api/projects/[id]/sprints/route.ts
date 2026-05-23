@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { parseDate } from "@/lib/utils";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -27,7 +28,7 @@ export async function GET(_req: Request, context: RouteContext) {
 export async function POST(req: Request, context: RouteContext) {
     const auth = await requireProjectAccess(context.params);
     if (!auth.success) return auth.response;
-    const { projectId } = auth;
+    const { projectId, user } = auth;
 
     let body: {
         title?: string
@@ -95,6 +96,18 @@ export async function POST(req: Request, context: RouteContext) {
                 });
             }
         }
+
+        const posthog = getPostHogClient();
+        posthog.capture({
+            distinctId: user.id,
+            event: "sprint_created",
+            properties: {
+                project_id: projectId,
+                sprint_id: sprint.id,
+                sprint_title: sprint.title,
+                transfer_unfinished_tasks: !!body.transferUnfinishedTasks,
+            },
+        });
 
         return NextResponse.json(sprint, { status: 201 });
     } catch (error: unknown) {

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -67,6 +68,9 @@ export function LoginPageClient() {
           throw new Error("Invalid email or password");
         }
 
+        posthog.identify(email, { email });
+        posthog.capture("user_logged_in", { method: "credentials" });
+
         router.replace("/projects");
       })(),
       {
@@ -78,6 +82,7 @@ export function LoginPageClient() {
   };
 
   const handleGoogleLogin = () => {
+    posthog.capture("user_logged_in_google", { method: "google" });
     void signIn("google", { callbackUrl: "/projects" });
   };
 

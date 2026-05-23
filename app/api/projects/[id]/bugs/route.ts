@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { createBug } from "@/lib/bug-service";
 import { sendBugCreatedEmail } from "@/lib/email";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -113,6 +114,18 @@ export async function POST(req: Request, context: RouteContext) {
         });
       }
     }
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: user.id,
+      event: "bug_reported",
+      properties: {
+        project_id: projectId,
+        bug_id: bug.id,
+        bug_number: bug.bugNumber,
+        bug_title: bug.title,
+      },
+    });
 
     return NextResponse.json(bug, { status: 201 });
   } catch (error: any) {

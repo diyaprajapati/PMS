@@ -5,6 +5,7 @@ import { canModifyTask, canDeleteTask } from "@/lib/task-permissions";
 import { TaskStatus } from "@prisma/client";
 import { TaskPriority } from "@prisma/client";
 import { updateTaskWithRules } from "@/lib/task-service";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type RouteContext = { params: Promise<{ id: string; taskId: string }> };
 
@@ -167,6 +168,19 @@ export async function PATCH(req: Request, context: RouteContext) {
       sprintId: body.sprintId,
       priority: body.priority ?? undefined,
     });
+
+    if (statusEnum) {
+      const posthog = getPostHogClient();
+      posthog.capture({
+        distinctId: user.id,
+        event: "task_status_updated",
+        properties: {
+          project_id: projectId,
+          task_id: taskId,
+          new_status: statusEnum,
+        },
+      });
+    }
 
     return NextResponse.json(updatedTask);
   } catch (error: any) {

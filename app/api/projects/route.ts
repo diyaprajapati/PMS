@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 // GET /api/projects – list projects for the current user
 export async function GET(req: Request) {
@@ -165,6 +166,13 @@ export async function POST(req: Request) {
       createdAt: true,
       updatedAt: true,
     },
+  });
+
+  const posthog = getPostHogClient();
+  posthog.capture({
+    distinctId: user.id,
+    event: "project_created",
+    properties: { project_id: project.id, project_name: project.name },
   });
 
   return NextResponse.json(project, { status: 201 });

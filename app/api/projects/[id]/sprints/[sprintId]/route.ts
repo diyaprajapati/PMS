@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { parseDate } from "@/lib/utils";
 import { SprintStatus } from "@prisma/client";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type RouteContext = { params: Promise<{ id: string; sprintId: string }> };
 
@@ -10,7 +11,7 @@ type RouteContext = { params: Promise<{ id: string; sprintId: string }> };
 export async function PATCH(req: Request, context: RouteContext) {
     const auth = await requireProjectAccess(context.params);
     if (!auth.success) return auth.response;
-    const { projectId } = auth;
+    const { projectId, user } = auth;
     const routeParams = await context.params;
     const sprintId = routeParams.sprintId;
 
@@ -84,6 +85,19 @@ export async function PATCH(req: Request, context: RouteContext) {
                 status: true,
             }
         });
+        if (data.status) {
+            const posthog = getPostHogClient();
+            posthog.capture({
+                distinctId: user.id,
+                event: "sprint_status_updated",
+                properties: {
+                    project_id: projectId,
+                    sprint_id: sprintId,
+                    new_status: updatedSprint.status,
+                },
+            });
+        }
+
         return NextResponse.json(updatedSprint);
     } catch (error: any) {
         console.error("Error updating sprint:", error);

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { validatePassword } from "@/lib/password";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 // POST /api/auth/register
 export async function POST(req: Request) {
@@ -42,6 +43,17 @@ export async function POST(req: Request) {
                 email,
                 password: hashedPassword,
             },
+        });
+
+        const posthog = getPostHogClient();
+        posthog.identify({
+            distinctId: user.id,
+            properties: { email: user.email, name: user.name },
+        });
+        posthog.capture({
+            distinctId: user.id,
+            event: "user_signed_up",
+            properties: { email: user.email, name: user.name },
         });
 
         return NextResponse.json(

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireProjectAccess, requireMemberManagement } from "@/lib/route-auth";
 import { sendProjectInvitationEmail } from "@/lib/email";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -200,6 +201,17 @@ export async function POST(req: Request, context: RouteContext) {
       console.error("Failed to send invitation email:", emailError);
       // Continue even if email fails - member is already added
     }
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: user.id,
+      event: "member_invited",
+      properties: {
+        project_id: projectId,
+        invited_user_id: targetUser.id,
+        role,
+      },
+    });
 
     return NextResponse.json(
       {

@@ -32,6 +32,7 @@ import { useDeleteProjectMutation, useProjectsQuery } from "@/queries/projects.q
 import { ApiError } from "@/lib/api-client";
 import { handleUnauthorizedError } from "@/lib/handle-unauthorized";
 import type { Project } from "@/services/projects.service";
+import posthog from "posthog-js";
 
 export function ProjectsPageClient() {
   const router = useRouter();
@@ -73,6 +74,7 @@ export function ProjectsPageClient() {
   const handleDeleteConfirm = async (project: Project) => {
     try {
       await deleteProjectMutation.mutateAsync(project.id);
+      posthog.capture("project_deleted", { project_id: project.id, project_name: project.name });
       toast.success("Project deleted.");
       setDeleteDialogOpen(false);
       setDeleteProjectTarget(null);

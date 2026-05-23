@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { validatePassword } from "@/lib/password";
 import { registerUser } from "@/services/auth.service";
+import posthog from "posthog-js";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -99,6 +100,8 @@ export function RegisterPageClient() {
         if (!result || result.error) {
           throw new Error("Account created, but automatic sign-in failed.");
         }
+
+        posthog.identify(email.trim().toLowerCase(), { email: email.trim().toLowerCase(), name: name.trim() });
 
         router.replace("/projects");
       })(),

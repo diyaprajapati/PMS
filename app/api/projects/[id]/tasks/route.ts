@@ -4,6 +4,7 @@ import { requireProjectAccess } from "@/lib/route-auth";
 import { TaskStatus } from "@prisma/client";
 import { TaskPriority } from "@prisma/client";
 import { createTaskWithRules } from "@/lib/task-service";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -178,7 +179,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 export async function POST(req: Request, context: RouteContext) {
   const auth = await requireProjectAccess(context.params);
   if (!auth.success) return auth.response;
-  const { projectId } = auth;
+  const { projectId, user } = auth;
 
   let body: {
     title?: string;
@@ -217,6 +218,20 @@ export async function POST(req: Request, context: RouteContext) {
       assigneeId: body.assigneeId ?? null,
       parentTaskId: body.parentTaskId ?? null,
       priority: body.priority ?? null,
+    });
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: user.id,
+      event: "task_created",
+      properties: {
+        project_id: projectId,
+        task_id: task.id,
+        task_title: task.title,
+        priority: task.priority,
+        sprint_id: task.sprintId,
+        is_subtask: !!task.parentTaskId,
+      },
     });
 
     return NextResponse.json(task, { status: 201 });

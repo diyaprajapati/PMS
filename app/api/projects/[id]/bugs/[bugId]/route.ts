@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { BugStatus, TaskPriority } from "@prisma/client";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { getBugById, updateBug } from "@/lib/bug-service";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type RouteContext = { params: Promise<{ id: string; bugId: string }> };
 
@@ -34,7 +35,7 @@ export async function GET(_req: Request, context: RouteContext) {
 export async function PATCH(req: Request, context: RouteContext) {
   const auth = await requireProjectAccess(context.params);
   if (!auth.success) return auth.response;
-  const { projectId } = auth;
+  const { projectId, user } = auth;
   const routeParams = await context.params;
 
   if (!routeParams.bugId) {
@@ -81,6 +82,19 @@ export async function PATCH(req: Request, context: RouteContext) {
       priority,
       status,
     });
+
+    if (status) {
+      const posthog = getPostHogClient();
+      posthog.capture({
+        distinctId: user.id,
+        event: "bug_status_updated",
+        properties: {
+          project_id: projectId,
+          bug_id: routeParams.bugId,
+          new_status: status,
+        },
+      });
+    }
 
     return NextResponse.json(bug);
   } catch (error: any) {
