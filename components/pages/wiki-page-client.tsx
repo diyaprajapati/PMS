@@ -1,7 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
@@ -23,8 +24,11 @@ import {
 } from "@/queries/wiki.queries";
 
 function WikiContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { projectId, project, projectLoading } = useProjectFromSearchParams();
-  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const pageParam = searchParams.get("page");
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(pageParam);
 
   const { data: pages, isLoading: pagesLoading } = useWikiPagesQuery(projectId);
   const { data: selectedPage } = useWikiPageQuery(projectId, selectedPageId);
@@ -33,9 +37,31 @@ function WikiContent() {
   const updateMutation = useUpdateWikiPageMutation(projectId);
   const deleteMutation = useDeleteWikiPageMutation(projectId);
 
+  const buildUrl = useCallback(
+    (pageId: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (pageId) {
+        params.set("page", pageId);
+      } else {
+        params.delete("page");
+      }
+      return `/wiki?${params.toString()}`;
+    },
+    [searchParams]
+  );
+
+  const handleSelectPage = useCallback(
+    (pageId: string) => {
+      setSelectedPageId(pageId);
+      router.replace(buildUrl(pageId), { scroll: false });
+    },
+    [router, buildUrl]
+  );
+
   const handleCreatePage = async (title: string, content?: object) => {
     const page = await createMutation.mutateAsync({ title, content: content ?? {} });
     setSelectedPageId(page.id);
+    router.replace(buildUrl(page.id), { scroll: false });
   };
 
   const handleSavePage = async (
@@ -49,6 +75,7 @@ function WikiContent() {
     await deleteMutation.mutateAsync(pageId);
     if (selectedPageId === pageId) {
       setSelectedPageId(null);
+      router.replace(buildUrl(null), { scroll: false });
     }
   };
 
@@ -88,7 +115,7 @@ function WikiContent() {
             <WikiSidebar
               pages={pages ?? []}
               selectedPageId={selectedPageId}
-              onSelectPage={setSelectedPageId}
+              onSelectPage={handleSelectPage}
               onCreatePage={handleCreatePage}
               onDeletePage={handleDeletePage}
               isLoading={pagesLoading}
@@ -96,6 +123,7 @@ function WikiContent() {
             <WikiEditor
               page={selectedPage}
               onSave={handleSavePage}
+              onDelete={handleDeletePage}
               isSaving={updateMutation.isPending}
             />
           </>

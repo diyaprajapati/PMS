@@ -162,8 +162,8 @@ export function WikiSidebar({
                   <button
                     type="button"
                     className={cn(
-                      "opacity-0 group-hover:opacity-100 transition-opacity",
-                      selectedPageId === page.id && "text-primary-foreground"
+                      "transition-opacity opacity-60 hover:opacity-100",
+                      selectedPageId === page.id && "text-primary-foreground opacity-80 hover:opacity-100"
                     )}
                     onClick={(e) => {
                       e.stopPropagation();

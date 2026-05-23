@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -69,6 +70,13 @@ export function TipTapEditor({
   placeholder = "Start writing...",
   className,
 }: TipTapEditorProps) {
+  const lastContentString = useRef<string | null>(null);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -83,15 +91,33 @@ export function TipTapEditor({
     ],
     content: content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getJSON());
+      const newJson = editor.getJSON();
+      const newStr = JSON.stringify(newJson);
+      // Only notify parent if this change wasn't triggered by setContent from the effect below
+      if (lastContentString.current !== newStr) {
+        lastContentString.current = newStr;
+        onChangeRef.current(newJson);
+      }
     },
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm dark:prose-invert max-w-none min-h-[300px] focus:outline-none",
+          "prose dark:prose-invert max-w-none min-h-[300px] focus:outline-none leading-relaxed",
       },
     },
   });
+
+  // Update editor content when the parent provides new content (e.g. switching pages).
+  // This runs after mount and whenever the content prop changes.
+  useEffect(() => {
+    if (editor && content) {
+      const contentStr = JSON.stringify(content);
+      if (lastContentString.current !== contentStr) {
+        lastContentString.current = contentStr;
+        editor.commands.setContent(content, { emitUpdate: false });
+      }
+    }
+  }, [editor, content]);
 
   if (!editor) {
     return (
