@@ -16,10 +16,23 @@ export function WikiEditor({ page, onSave, isSaving }: WikiEditorProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<object>({});
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>("");
 
-  // Sync local state when page changes
+  // Refs so the debounce callback always reads the latest values
+  const titleRef = useRef(title);
+  const contentRef = useRef(content);
+
+  useEffect(() => {
+    titleRef.current = title;
+  }, [title]);
+
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+
+  // Sync local state when page changes, and cancel any pending save from the previous page
   useEffect(() => {
     if (page) {
       setTitle(page.title);
@@ -27,20 +40,31 @@ export function WikiEditor({ page, onSave, isSaving }: WikiEditorProps) {
       setSaveStatus("idle");
       lastSavedRef.current = JSON.stringify({ title: page.title, content: page.content });
     }
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
   }, [page?.id]);
 
-  const triggerSave = useCallback(
-    (newTitle: string, newContent: object) => {
+  const scheduleSave = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
       if (!page) return;
 
-      const currentState = JSON.stringify({ title: newTitle, content: newContent });
+      const currentTitle = titleRef.current;
+      const currentContent = contentRef.current;
+      const currentState = JSON.stringify({ title: currentTitle, content: currentContent });
+
       if (currentState === lastSavedRef.current) return;
 
       setSaveStatus("saving");
 
       onSave(page.id, {
-        title: newTitle,
-        content: newContent,
+        title: currentTitle,
+        content: currentContent,
       })
         .then(() => {
           setSaveStatus("saved");
@@ -52,24 +76,17 @@ export function WikiEditor({ page, onSave, isSaving }: WikiEditorProps) {
           const message = error instanceof Error ? error.message : "Failed to save";
           toast.error(message);
         });
-    },
-    [page, onSave]
-  );
+    }, 1000);
+  }, [page, onSave]);
 
   const handleTitleChange = (value: string) => {
     setTitle(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      triggerSave(value, content);
-    }, 1000);
+    scheduleSave();
   };
 
   const handleContentChange = (newContent: object) => {
     setContent(newContent);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      triggerSave(title, newContent);
-    }, 1000);
+    scheduleSave();
   };
 
   if (!page) {
@@ -96,7 +113,9 @@ export function WikiEditor({ page, onSave, isSaving }: WikiEditorProps) {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-6">
+        {/* key forces a remount so useEditor gets the new initial content */}
         <TipTapEditor
+          key={page.id}
           content={content}
           onChange={handleContentChange}
           placeholder="Start writing your wiki content..."
