@@ -204,3 +204,46 @@
   }
 }
 
+/* Milkdown seamless editor — transparent background, no card/box feel */
+.milkdown {
+  --crepe-color-background: transparent !important;
+  --crepe-color-surface: transparent !important;
+  --crepe-color-surface-low: transparent !important;
+  --crepe-color-hover: hsl(var(--accent)) !important;
+  --crepe-color-selected: hsl(var(--accent)) !important;
+  --crepe-color-inline-area: hsl(var(--muted)) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.dark .milkdown {
+  --crepe-color-background: transparent !important;
+  --crepe-color-surface: transparent !important;
+  --crepe-color-surface-low: transparent !important;
+  --crepe-color-hover: hsl(var(--accent)) !important;
+  --crepe-color-selected: hsl(var(--accent)) !important;
+  --crepe-color-inline-area: hsl(var(--muted)) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove any borders/separators inside the milkdown editor chrome */
+.milkdown .crepe-root,
+.milkdown .ProseMirror,
+.milkdown .milkdown-editor,
+.milkdown-editor {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Toolbar should feel native, not like a floating card */
+.milkdown .crepe-toolbar,
+.milkdown crepe-toolbar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+

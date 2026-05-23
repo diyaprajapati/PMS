@@ -167,7 +167,7 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header: title + meta + actions */}
-      <div className="flex items-start justify-between border-b px-8 py-6 gap-4">
+      <div className="flex items-start justify-between px-8 pt-8 pb-4 gap-4">
         <div className="flex-1 min-w-0">
           <Input
             value={title}
@@ -175,7 +175,7 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
             className="border-none bg-transparent text-3xl font-bold tracking-tight focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto md:text-4xl lg:text-5xl"
             placeholder="Page title"
           />
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
               <Avatar className="h-5 w-5">
                 <AvatarImage src={page.author?.image ?? undefined} />
@@ -215,8 +215,9 @@ export function WikiEditor({ page, onSave, onDelete, isSaving }: WikiEditorProps
       </div>
 
       {/* Editor */}
-      <div className="flex-1 overflow-y-auto px-8 py-8">
+      <div className="flex-1 overflow-y-auto px-8 pb-10">
         <MilkdownEditor
+          key={page.id}
           content={page.content ?? ""}
           onChange={handleContentChange}
           placeholder="Start writing your wiki content..."
