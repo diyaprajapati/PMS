@@ -78,6 +78,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
     // Filter by parent task (for subtasks).
     // When filtering by assignee or status, include tasks at any level (so assigned subtasks show up).
     const filterByAssigneeOrStatus = !!(assigneeId || (status && Object.values(TaskStatus).includes(status as TaskStatus)));
+    const childSprintWhere =
+      sprintIdParam === null
+        ? {}
+        : { sprintId: isBacklogView ? null : sprintIdParam };
     if (!filterByAssigneeOrStatus) {
       if (parentTaskId === "null") {
         where.parentTaskId = null; // Only top-level tasks
@@ -113,6 +117,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       },
       ...(includeSubtasks && !filterByAssigneeOrStatus && {
         subtasks: {
+          where: childSprintWhere,
           include: {
             assignee: {
               include: {

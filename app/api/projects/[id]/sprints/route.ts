@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/route-auth";
 import { parseDate } from "@/lib/utils";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { transferUnfinishedTasksToSprint } from "@/lib/sprint-service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -63,39 +64,17 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     try {
-        const sprint = await prisma.sprint.create({
-            data: { title, projectId, startDate, endDate },
-        });
-
-        // If transferUnfinishedTasks is true, move all unfinished tasks from other sprints to this new sprint
-        if (body.transferUnfinishedTasks) {
-            // Get all parent tasks that are unfinished and in other sprints
-            const unfinishedParentTasks = await prisma.task.findMany({
-                where: {
-                    projectId,
-                    sprintId: { not: null },
-                    status: { in: ["TODO", "IN_PROGRESS"] },
-                    parentTaskId: null,
-                },
-                select: { id: true },
+        const sprint = await prisma.$transaction(async (tx) => {
+            const createdSprint = await tx.sprint.create({
+                data: { title, projectId, startDate, endDate },
             });
 
-            const parentTaskIds = unfinishedParentTasks.map(t => t.id);
-
-            if (parentTaskIds.length > 0) {
-                // Update parent tasks to new sprint
-                await prisma.task.updateMany({
-                    where: { id: { in: parentTaskIds } },
-                    data: { sprintId: sprint.id },
-                });
-
-                // Update all their subtasks to the new sprint as well
-                await prisma.task.updateMany({
-                    where: { parentTaskId: { in: parentTaskIds } },
-                    data: { sprintId: sprint.id },
-                });
+            if (body.transferUnfinishedTasks) {
+                await transferUnfinishedTasksToSprint(tx, projectId, createdSprint.id);
             }
-        }
+
+            return createdSprint;
+        });
 
         const posthog = getPostHogClient();
         posthog.capture({
